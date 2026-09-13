@@ -48,13 +48,15 @@ app.use("/uploads", express.static("uploads"));
 // =====================================
 
 mongoose
-  .connect("mongodb://127.0.0.1:27017/mybookapp")
+  .connect(process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/mybookapp")
   .then(() => {
     console.log("MongoDB Connected");
 
-    app.listen(3000, () => {
-      console.log("Server running on port 3000");
-    });
+    const PORT = process.env.PORT || 3000;
+
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`Server running on port ${PORT}`);
+});
   })
   .catch((error) => {
     console.log("MongoDB Connection Error:", error);
