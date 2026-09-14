@@ -47,8 +47,12 @@ app.use("/uploads", express.static("uploads"));
 // MONGODB CONNECTION
 // =====================================
 
-mongoose
-  .connect(process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/mybookapp")
+mongoose.connect(
+  process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/mybookapp",
+  {
+    dbName: "mybookapp",
+  }
+)
   .then(() => {
     console.log("MongoDB Connected");
 
