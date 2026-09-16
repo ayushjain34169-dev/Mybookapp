@@ -1592,10 +1592,16 @@ app.post(
 
       if (req.file) {
 
-        author.image =
-          `/uploads/${req.file.filename}`;
+  const result = await cloudinary.uploader.upload(
+    req.file.path,
+    {
+      folder: "mybookapp/authors",
+    }
+  );
 
-      }
+  author.image = result.secure_url;
+
+}
 
 
       await author.save();
