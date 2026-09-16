@@ -25,6 +25,16 @@ const bookSchema = new mongoose.Schema({
     type: String,
     default: "",
   },
+
+  frontImage: {
+    type: String,
+    default: "",
+  },
+
+  backImage: {
+    type: String,
+    default: "",
+  },
 });
 
 module.exports = mongoose.model("Book", bookSchema);

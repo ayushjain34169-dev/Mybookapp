@@ -2,6 +2,12 @@ const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
 const multer = require("multer");
+const cloudinary = require("cloudinary").v2; 
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
 const Book = require("./models/Book");
 const Author = require("./models/author");
@@ -501,6 +507,21 @@ app.get("/add-book", (req, res) => {
             accept="image/*"
             required
           >
+          <label>Front Image:</label>
+
+<input
+  type="file"
+  name="frontImage"
+  accept="image/*"
+>
+  
+<label>Back Image:</label>
+
+<input
+  type="file"
+  name="backImage"
+  accept="image/*"
+>
 
           <button type="submit">
             Add Book
@@ -523,27 +544,61 @@ app.get("/add-book", (req, res) => {
 
 app.post(
   "/add-book",
-  upload.single("coverImage"),
+  upload.fields([
+  { name: "coverImage", maxCount: 1 },
+  { name: "frontImage", maxCount: 1 },
+  { name: "backImage", maxCount: 1 },
+]),
 
   async (req, res) => {
 
     try {
 
-      const book = new Book({
+      let coverImageUrl = "";
+let frontImageUrl = "";
+let backImageUrl = "";
 
-        title: req.body.title,
+if (req.files?.coverImage?.[0]) {
+  const result = await cloudinary.uploader.upload(
+    req.files.coverImage[0].path,
+    {
+      folder: "mybookapp/books",
+    }
+  );
 
-        author: req.body.author,
+  coverImageUrl = result.secure_url;
+}
 
-        price: req.body.price,
+if (req.files?.frontImage?.[0]) {
+  const result = await cloudinary.uploader.upload(
+    req.files.frontImage[0].path,
+    {
+      folder: "mybookapp/books",
+    }
+  );
 
-        description: req.body.description,
+  frontImageUrl = result.secure_url;
+}
 
-        coverImage: req.file
-          ? `/uploads/${req.file.filename}`
-          : "",
+if (req.files?.backImage?.[0]) {
+  const result = await cloudinary.uploader.upload(
+    req.files.backImage[0].path,
+    {
+      folder: "mybookapp/books",
+    }
+  );
 
-      });
+  backImageUrl = result.secure_url;
+}
+const book = new Book({
+  title: req.body.title,
+  author: req.body.author,
+  price: req.body.price,
+  description: req.body.description,
+  coverImage: coverImageUrl,
+  frontImage: frontImageUrl,
+  backImage: backImageUrl,
+});
 
       await book.save();
 
