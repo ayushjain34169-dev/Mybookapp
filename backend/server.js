@@ -476,14 +476,23 @@ app.get("/add-book", (req, res) => {
             name="title"
             required
           >
+<label>Author Name:</label>
+<input type="text" name="authorName" required>
 
-          <label>Author:</label>
+<label>Education:</label>
+<input type="text" name="authorEducation" placeholder="MCA, BCA etc.">
 
-          <input
-            type="text"
-            name="author"
-            required
-          >
+<label>Author Bio:</label>
+<textarea name="authorBio" placeholder="About the author..."></textarea>
+
+<label>Author Email:</label>
+<input type="email" name="authorEmail">
+
+<label>Author Phone:</label>
+<input type="text" name="authorPhone">
+
+<label>Author Image:</label>
+<input type="file" name="authorImage" accept="image/*" required>
 
           <label>Price:</label>
 
@@ -548,15 +557,18 @@ app.post(
   { name: "coverImage", maxCount: 1 },
   { name: "frontImage", maxCount: 1 },
   { name: "backImage", maxCount: 1 },
+  { name: "authorImage", maxCount: 1 },
 ]),
 
   async (req, res) => {
 
     try {
 
-      let coverImageUrl = "";
+
+let coverImageUrl = "";
 let frontImageUrl = "";
 let backImageUrl = "";
+let authorImageUrl = "";
 
 if (req.files?.coverImage?.[0]) {
   const result = await cloudinary.uploader.upload(
@@ -590,16 +602,36 @@ if (req.files?.backImage?.[0]) {
 
   backImageUrl = result.secure_url;
 }
+if (req.files?.authorImage?.[0]) {
+  const result = await cloudinary.uploader.upload(
+    req.files.authorImage[0].path,
+    {
+      folder: "mybookapp/authors",
+    }
+  );
+
+  authorImageUrl = result.secure_url;
+}
 const book = new Book({
   title: req.body.title,
-  author: req.body.author,
+
+  author: req.body.authorName,
+
+  authorDetails: {
+    name: req.body.authorName,
+    education: req.body.authorEducation || "",
+    bio: req.body.authorBio || "",
+    image: authorImageUrl,
+    email: req.body.authorEmail || "",
+    phone: req.body.authorPhone || "",
+  },
+
   price: req.body.price,
   description: req.body.description,
   coverImage: coverImageUrl,
   frontImage: frontImageUrl,
   backImage: backImageUrl,
 });
-
       await book.save();
 
       // =================================
