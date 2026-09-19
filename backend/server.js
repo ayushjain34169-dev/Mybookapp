@@ -100,34 +100,19 @@ app.get("/books", async (req, res) => {
 // BOOKS WILL NOT BE DELETED
 // =====================================
 
-// =====================================
-// REMOVE OLD FAVOURITE CATEGORY
-// BOOKS WILL NOT BE DELETED
-// =====================================
-
 app.put("/books/remove-old-favourite", async (req, res) => {
   try {
-    const books = await Book.find({
-      category: "favourite",
-    });
-
-    for (const book of books) {
-      book.category = undefined;
-      await book.save();
-    }
+    const books = await Book.find();
 
     res.json({
       success: true,
-      message: "Old Favourite category removed",
-      modifiedCount: books.length,
-      books: books.map((book) => ({
-        id: book._id,
+      totalBooks: books.length,
+      categories: books.map((book) => ({
         title: book.title,
+        category: book.category,
       })),
     });
   } catch (error) {
-    console.error("Remove Category Error:", error);
-
     res.status(500).json({
       success: false,
       message: error.message,
