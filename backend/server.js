@@ -102,17 +102,19 @@ app.get("/books", async (req, res) => {
 
 app.put("/books/remove-old-favourite", async (req, res) => {
   try {
-    const books = await Book.find();
+    const result = await Book.updateMany(
+      { category: "favourite" },
+      { $set: { category: null } }
+    );
 
     res.json({
       success: true,
-      totalBooks: books.length,
-      categories: books.map((book) => ({
-        title: book.title,
-        category: book.category,
-      })),
+      message: "Old Favourite category removed",
+      modifiedCount: result.modifiedCount,
     });
   } catch (error) {
+    console.error("Remove Category Error:", error);
+
     res.status(500).json({
       success: false,
       message: error.message,
