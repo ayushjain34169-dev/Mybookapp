@@ -99,6 +99,59 @@ app.get("/books", async (req, res) => {
   }
 });
 // =====================================
+// UPDATE BOOK CATEGORY
+// =====================================
+
+app.put("/books/:id/category", async (req, res) => {
+  try {
+    const { category } = req.body;
+
+    const allowedCategories = [
+      null,
+      "favourite",
+      "new_release",
+      "trending",
+    ];
+
+    if (!allowedCategories.includes(category)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid category",
+      });
+    }
+
+    const book = await Book.findByIdAndUpdate(
+      req.params.id,
+      {
+        category: category,
+      },
+      {
+        new: true,
+      }
+    );
+
+    if (!book) {
+      return res.status(404).json({
+        success: false,
+        message: "Book not found",
+      });
+    }
+
+    res.json({
+      success: true,
+      message: "Book category updated successfully",
+      book: book,
+    });
+  } catch (error) {
+    console.error("Category Update Error:", error);
+
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+});
+// =====================================
 // REMOVE OLD FAVOURITE CATEGORY
 // BOOKS WILL NOT BE DELETED
 // =====================================
