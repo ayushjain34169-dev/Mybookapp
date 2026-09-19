@@ -524,7 +524,7 @@ app.get("/add-book", (req, res) => {
   accept="image/*"
 >
   
-<label>Back Image:</label>
+<<label>Back Image:</label>
 
 <input
   type="file"
@@ -532,10 +532,27 @@ app.get("/add-book", (req, res) => {
   accept="image/*"
 >
 
-          <button type="submit">
-            Add Book
-          </button>
+<label>Book Category:</label>
 
+<select
+  name="category"
+  required
+  style="
+    width: 100%;
+    padding: 10px;
+    margin-top: 6px;
+    margin-bottom: 15px;
+    box-sizing: border-box;
+  "
+>
+  <option value="favourite">⭐ Favourite</option>
+  <option value="new_release">🆕 New Release</option>
+  <option value="trending">🔥 Trending</option>
+</select>
+
+<button type="submit">
+  Add Book
+</button>
         </form>
 
       </div>
@@ -631,6 +648,9 @@ const book = new Book({
   coverImage: coverImageUrl,
   frontImage: frontImageUrl,
   backImage: backImageUrl,
+
+  // Book category
+  category: req.body.category,
 });
       await book.save();
 

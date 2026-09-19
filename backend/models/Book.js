@@ -68,6 +68,13 @@ const bookSchema = new mongoose.Schema({
     type: String,
     default: "",
   },
+
+  // Home screen category
+  category: {
+    type: String,
+    enum: ["favourite", "new_release", "trending"],
+    default: "favourite",
+  },
 });
 
 module.exports = mongoose.model("Book", bookSchema);
