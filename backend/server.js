@@ -95,6 +95,32 @@ app.get("/books", async (req, res) => {
     });
   }
 });
+// =====================================
+// REMOVE OLD FAVOURITE CATEGORY
+// BOOKS WILL NOT BE DELETED
+// =====================================
+
+app.put("/books/remove-old-favourite", async (req, res) => {
+  try {
+    const result = await Book.updateMany(
+      { category: "favourite" },
+      { $unset: { category: "" } }
+    );
+
+    res.json({
+      success: true,
+      message: "Old Favourite category removed",
+      modifiedCount: result.modifiedCount,
+    });
+  } catch (error) {
+    console.error("Remove Category Error:", error);
+
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+});
 
 // =====================================
 // DELETE BOOK API
