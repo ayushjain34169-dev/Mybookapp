@@ -100,17 +100,30 @@ app.get("/books", async (req, res) => {
 // BOOKS WILL NOT BE DELETED
 // =====================================
 
+// =====================================
+// REMOVE OLD FAVOURITE CATEGORY
+// BOOKS WILL NOT BE DELETED
+// =====================================
+
 app.put("/books/remove-old-favourite", async (req, res) => {
   try {
-    const result = await Book.updateMany(
-      { category: "favourite" },
-      { $unset: { category: "" } }
-    );
+    const books = await Book.find({
+      category: "favourite",
+    });
+
+    for (const book of books) {
+      book.category = undefined;
+      await book.save();
+    }
 
     res.json({
       success: true,
       message: "Old Favourite category removed",
-      modifiedCount: result.modifiedCount,
+      modifiedCount: books.length,
+      books: books.map((book) => ({
+        id: book._id,
+        title: book.title,
+      })),
     });
   } catch (error) {
     console.error("Remove Category Error:", error);
@@ -121,32 +134,6 @@ app.put("/books/remove-old-favourite", async (req, res) => {
     });
   }
 });
-
-// =====================================
-// DELETE BOOK API
-// =====================================
-
-app.delete("/books/:id", async (req, res) => {
-  try {
-    const book = await Book.findByIdAndDelete(req.params.id);
-
-    if (!book) {
-      return res.status(404).json({
-        message: "Book not found",
-      });
-    }
-
-    res.json({
-      message: "Book deleted successfully",
-      book: book,
-    });
-  } catch (error) {
-    res.status(500).json({
-      error: error.message,
-    });
-  }
-});
-
 // =====================================
 // DEVELOPER DELETE BOOK PAGE
 // =====================================
