@@ -524,7 +524,7 @@ app.get("/add-book", (req, res) => {
   accept="image/*"
 >
   
-<<label>Back Image:</label>
+<label>Back Image:</label>
 
 <input
   type="file"
