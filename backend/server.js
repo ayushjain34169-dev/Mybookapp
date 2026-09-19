@@ -12,6 +12,7 @@ cloudinary.config({
 const Book = require("./models/Book");
 const Author = require("./models/author");
 const Notification = require("./models/notification");
+const Favourite = require("./models/Favourite");
 
 const app = express();
 
@@ -99,6 +100,107 @@ app.get("/books", async (req, res) => {
   }
 });
 // =====================================
+// ADD BOOK TO FAVOURITES
+// =====================================
+
+app.post("/favourites", async (req, res) => {
+  try {
+    const { userId, bookId } = req.body;
+
+    if (!userId || !bookId) {
+      return res.status(400).json({
+        success: false,
+        message: "userId and bookId are required",
+      });
+    }
+
+    const favourite = await Favourite.create({
+      userId,
+      bookId,
+    });
+
+    res.json({
+      success: true,
+      message: "Book added to favourites",
+      favourite,
+    });
+  } catch (error) {
+    if (error.code === 11000) {
+      return res.status(409).json({
+        success: false,
+        message: "Book already in favourites",
+      });
+    }
+
+    console.error("Add Favourite Error:", error);
+
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+});
+
+// =====================================
+// REMOVE BOOK FROM FAVOURITES
+// =====================================
+
+app.delete("/favourites", async (req, res) => {
+  try {
+    const { userId, bookId } = req.body;
+
+    if (!userId || !bookId) {
+      return res.status(400).json({
+        success: false,
+        message: "userId and bookId are required",
+      });
+    }
+
+    const result = await Favourite.findOneAndDelete({
+      userId,
+      bookId,
+    });
+
+    res.json({
+      success: true,
+      message: result
+          ? "Book removed from favourites"
+          : "Book was not in favourites",
+    });
+  } catch (error) {
+    console.error("Remove Favourite Error:", error);
+
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+});
+
+// =====================================
+// GET USER FAVOURITES
+// =====================================
+
+app.get("/favourites/:userId", async (req, res) => {
+  try {
+    const favourites = await Favourite.find({
+      userId: req.params.userId,
+    }).populate("bookId");
+
+    res.json({
+      success: true,
+      favourites,
+    });
+  } catch (error) {
+    console.error("Get Favourite Error:", error);
+
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+});
+// =====================================
 // UPDATE BOOK CATEGORY
 // =====================================
 
@@ -108,7 +210,6 @@ app.put("/books/:id/category", async (req, res) => {
 
     const allowedCategories = [
       null,
-      "favourite",
       "new_release",
       "trending",
     ];
