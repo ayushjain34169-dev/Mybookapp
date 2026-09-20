@@ -1041,8 +1041,7 @@ const book = new Book({
     pdfUrl: pdfUrl,
 });
 
-  // Book category
-  category: req.body.category || null,
+  
 
       await book.save();
 
