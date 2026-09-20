@@ -201,6 +201,39 @@ app.get("/favourites/:userId", async (req, res) => {
   }
 });
 // =====================================
+// CHECK FAVOURITE STATUS
+// =====================================
+
+app.get("/favourites/check", async (req, res) => {
+  try {
+    const { userId, bookId } = req.query;
+
+    if (!userId || !bookId) {
+      return res.status(400).json({
+        success: false,
+        message: "userId and bookId are required",
+      });
+    }
+
+    const favourite = await Favourite.findOne({
+      userId,
+      bookId,
+    });
+
+    res.json({
+      success: true,
+      isFavourite: !!favourite,
+    });
+  } catch (error) {
+    console.error("Check Favourite Error:", error);
+
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+});
+// =====================================
 // UPDATE BOOK CATEGORY
 // =====================================
 
@@ -702,9 +735,9 @@ app.get("/add-book", (req, res) => {
     box-sizing: border-box;
   "
 >
-  <option value="favourite">⭐ Favourite</option>
-  <option value="new_release">🆕 New Release</option>
-  <option value="trending">🔥 Trending</option>
+  <option value="">No Category</option>
+<option value="new_release">🆕 New Release</option>
+<option value="trending">🔥 Trending</option>
 </select>
 
 <button type="submit">
@@ -807,7 +840,7 @@ const book = new Book({
   backImage: backImageUrl,
 
   // Book category
-  category: req.body.category,
+  category: req.body.category || null,
 });
       await book.save();
 
