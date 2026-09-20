@@ -11,6 +11,8 @@ class AllBooksScreen extends StatefulWidget {
 }
 
 class _AllBooksScreenState extends State<AllBooksScreen> {
+  static const String userId = 'demo_user';
+
   late Future<List<dynamic>> booksFuture;
 
   @override
@@ -25,39 +27,53 @@ class _AllBooksScreenState extends State<AllBooksScreen> {
     });
   }
 
-  Future<void> changeCategory(
+  Future<bool> checkFavourite(String bookId) async {
+    if (bookId.isEmpty) return false;
+
+    try {
+      return await BookApi.checkFavourite(userId, bookId);
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<void> toggleFavourite(
     BuildContext context,
     String bookId,
-    String? category,
+    bool isFavourite,
   ) async {
+    if (bookId.isEmpty) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Book ID nahi mila')));
+      return;
+    }
+
     try {
-      await BookApi.updateBookCategory(bookId, category);
+      if (isFavourite) {
+        await BookApi.removeFavourite(userId, bookId);
 
-      if (!mounted) return;
+        if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Book category updated successfully')),
-      );
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Book Favourite se remove ho gayi')),
+        );
+      } else {
+        await BookApi.addFavourite(userId, bookId);
+
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Book Favourite mein add ho gayi ❤️')),
+        );
+      }
 
       refreshBooks();
     } catch (e) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Error: $e')));
-    }
-  }
-
-  String getCategoryName(dynamic category) {
-    switch (category?.toString()) {
-      case 'new_release':
-        return '🆕 New Release';
-
-      case 'trending':
-        return '🔥 Trending';
-
-      default:
-        return 'No Category';
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Favourite update nahi hui: $e')));
     }
   }
 
@@ -117,102 +133,79 @@ class _AllBooksScreenState extends State<AllBooksScreen> {
 
               final bookId = book['_id']?.toString() ?? '';
 
-              final currentCategory = book['category'];
-
               return Card(
                 elevation: 4,
                 margin: const EdgeInsets.only(bottom: 15),
 
-                child: ListTile(
-                  contentPadding: const EdgeInsets.all(10),
+                child: FutureBuilder<bool>(
+                  future: checkFavourite(bookId),
 
-                  leading: SizedBox(
-                    width: 65,
-                    height: 85,
+                  builder: (context, favouriteSnapshot) {
+                    final isFavourite = favouriteSnapshot.data ?? false;
 
-                    child: imageUrl.isNotEmpty
-                        ? Image.network(
-                            imageUrl,
-                            fit: BoxFit.cover,
+                    return ListTile(
+                      contentPadding: const EdgeInsets.all(10),
 
-                            errorBuilder: (context, error, stackTrace) {
-                              return const Icon(Icons.book, size: 50);
-                            },
-                          )
-                        : const Icon(Icons.book, size: 50),
-                  ),
+                      leading: SizedBox(
+                        width: 65,
+                        height: 85,
 
-                  title: Text(
-                    book['title']?.toString() ?? '',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 17,
-                    ),
-                  ),
+                        child: imageUrl.isNotEmpty
+                            ? Image.network(
+                                imageUrl,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return const Icon(Icons.book, size: 50);
+                                },
+                              )
+                            : const Icon(Icons.book, size: 50),
+                      ),
 
-                  subtitle: Padding(
-                    padding: const EdgeInsets.only(top: 6),
+                      title: Text(
+                        book['title']?.toString() ?? '',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 17,
+                        ),
+                      ),
 
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      subtitle: Padding(
+                        padding: const EdgeInsets.only(top: 6),
 
-                      children: [
-                        Text(
+                        child: Text(
                           'Author: ${book['author']?.toString() ?? ''}\n'
                           '₹${book['price']?.toString() ?? '0'}',
                         ),
+                      ),
 
-                        const SizedBox(height: 6),
+                      trailing: IconButton(
+                        onPressed:
+                            favouriteSnapshot.connectionState ==
+                                ConnectionState.waiting
+                            ? null
+                            : () {
+                                toggleFavourite(context, bookId, isFavourite);
+                              },
 
-                        Text(
-                          getCategoryName(currentCategory),
-                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        icon: Icon(
+                          isFavourite ? Icons.favorite : Icons.favorite_border,
+                          color: isFavourite ? Colors.red : Colors.grey,
+                          size: 28,
                         ),
-                      ],
-                    ),
-                  ),
 
-                  trailing: PopupMenuButton<String>(
-                    icon: const Icon(Icons.more_vert),
-
-                    onSelected: (value) {
-                      String? selectedCategory;
-
-                      if (value == 'new_release') {
-                        selectedCategory = 'new_release';
-                      } else if (value == 'trending') {
-                        selectedCategory = 'trending';
-                      } else if (value == 'none') {
-                        selectedCategory = null;
-                      }
-
-                      changeCategory(context, bookId, selectedCategory);
-                    },
-
-                    itemBuilder: (context) => [
-                      const PopupMenuItem(
-                        value: 'none',
-                        child: Text('No Category'),
+                        tooltip: isFavourite
+                            ? 'Remove Favourite'
+                            : 'Add Favourite',
                       ),
 
-                      const PopupMenuItem(
-                        value: 'new_release',
-                        child: Text('🆕 New Release'),
-                      ),
-
-                      const PopupMenuItem(
-                        value: 'trending',
-                        child: Text('🔥 Trending'),
-                      ),
-                    ],
-                  ),
-
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => BookDetailsScreen(book: book),
-                      ),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => BookDetailsScreen(book: book),
+                          ),
+                        );
+                      },
                     );
                   },
                 ),

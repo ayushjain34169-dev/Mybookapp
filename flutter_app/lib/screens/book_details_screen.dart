@@ -13,8 +13,6 @@ class BookDetailsScreen extends StatefulWidget {
 }
 
 class _BookDetailsScreenState extends State<BookDetailsScreen> {
-  // Temporary user ID
-  // Login system banne ke baad actual user ID yahan use hogi.
   static const String userId = 'demo_user';
 
   bool isFavourite = false;
@@ -26,11 +24,12 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
     checkFavouriteStatus();
   }
 
-  // CHECK FAVOURITE
   Future<void> checkFavouriteStatus() async {
     final String bookId = widget.book['_id']?.toString() ?? '';
 
     if (bookId.isEmpty) {
+      if (!mounted) return;
+
       setState(() {
         isFavouriteLoading = false;
       });
@@ -55,7 +54,6 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
     }
   }
 
-  // ADD / REMOVE FAVOURITE
   Future<void> toggleFavourite() async {
     final String bookId = widget.book['_id']?.toString() ?? '';
 
@@ -176,71 +174,79 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
     );
   }
 
+  Future<void> openAmazonBook() async {
+    final url = widget.book['amazonUrl']?.toString().trim() ?? '';
+
+    if (url.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Amazon link available nahi hai')),
+      );
+      return;
+    }
+
+    final uri = Uri.tryParse(url);
+
+    if (uri != null && await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
+  void openReadBook() {
+    final bool isFree = widget.book['isFree'] == true;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          isFree
+              ? 'Free book reading screen next step me open hogi.'
+              : 'Payment ke baad book read kar sakenge.',
+        ),
+      ),
+    );
+  }
+
   Widget buildAuthorSection() {
-    final authorDetails =
-        widget.book['authorDetails'] as Map<String, dynamic>? ?? {};
+    final author = widget.book['authorDetails'] is Map
+        ? Map<String, dynamic>.from(widget.book['authorDetails'])
+        : {};
 
-    final String authorName =
-        authorDetails['name']?.toString().isNotEmpty == true
-        ? authorDetails['name'].toString()
-        : widget.book['author']?.toString() ?? 'Author';
+    final name =
+        author['name']?.toString() ??
+        widget.book['author']?.toString() ??
+        'Author';
 
-    final String education = authorDetails['education']?.toString() ?? '';
+    final education = author['education']?.toString() ?? '';
 
-    final String bio = authorDetails['bio']?.toString() ?? '';
+    final bio = author['bio']?.toString() ?? '';
 
-    final String image = authorDetails['image']?.toString() ?? '';
-
-    final String email = authorDetails['email']?.toString() ?? '';
-
-    final String phone = authorDetails['phone']?.toString() ?? '';
+    final image = author['image']?.toString() ?? '';
 
     return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
           children: [
-            if (image.isNotEmpty)
-              ClipOval(
-                child: Image.network(
-                  image,
-                  width: 125,
-                  height: 125,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return const Icon(Icons.person, size: 75);
-                  },
-                ),
-              )
-            else
-              const Icon(Icons.person, size: 75),
+            image.isNotEmpty
+                ? ClipOval(
+                    child: Image.network(
+                      image,
+                      width: 120,
+                      height: 120,
+                      fit: BoxFit.cover,
+                    ),
+                  )
+                : const Icon(Icons.person, size: 75),
 
             const SizedBox(height: 15),
 
             Text(
-              authorName,
-              textAlign: TextAlign.center,
+              name,
               style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
             ),
 
             if (education.isNotEmpty) ...[
               const SizedBox(height: 8),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.school_outlined, size: 20),
-                  const SizedBox(width: 7),
-                  Flexible(
-                    child: Text(
-                      education,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 16, color: Colors.grey[700]),
-                    ),
-                  ),
-                ],
-              ),
+              Text(education),
             ],
 
             const SizedBox(height: 20),
@@ -257,57 +263,8 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
 
             Align(
               alignment: Alignment.centerLeft,
-              child: Text(
-                bio.isNotEmpty ? bio : 'No biography available.',
-                style: const TextStyle(fontSize: 15.5, height: 1.6),
-              ),
+              child: Text(bio.isNotEmpty ? bio : 'No biography available.'),
             ),
-
-            if (email.isNotEmpty) ...[
-              const SizedBox(height: 20),
-              InkWell(
-                onTap: () async {
-                  final emailUri = Uri(scheme: 'mailto', path: email);
-
-                  if (await canLaunchUrl(emailUri)) {
-                    await launchUrl(emailUri);
-                  }
-                },
-                child: Row(
-                  children: [
-                    const Icon(Icons.email_outlined),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(email, style: const TextStyle(fontSize: 15)),
-                    ),
-                    const Icon(Icons.arrow_forward_ios, size: 15),
-                  ],
-                ),
-              ),
-            ],
-
-            if (phone.isNotEmpty) ...[
-              const SizedBox(height: 15),
-              InkWell(
-                onTap: () async {
-                  final phoneUri = Uri(scheme: 'tel', path: phone);
-
-                  if (await canLaunchUrl(phoneUri)) {
-                    await launchUrl(phoneUri);
-                  }
-                },
-                child: Row(
-                  children: [
-                    const Icon(Icons.phone_outlined),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(phone, style: const TextStyle(fontSize: 15)),
-                    ),
-                    const Icon(Icons.arrow_forward_ios, size: 15),
-                  ],
-                ),
-              ),
-            ],
           ],
         ),
       ),
@@ -316,9 +273,15 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final String frontImage = widget.book['frontImage']?.toString() ?? '';
+    final frontImage = widget.book['frontImage']?.toString() ?? '';
 
-    final String backImage = widget.book['backImage']?.toString() ?? '';
+    final backImage = widget.book['backImage']?.toString() ?? '';
+
+    final amazonUrl = widget.book['amazonUrl']?.toString().trim() ?? '';
+
+    final appBookEnabled = widget.book['appBookEnabled'] == true;
+
+    final isFree = widget.book['isFree'] == true;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF1F3FA),
@@ -329,7 +292,6 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
 
-        // ❤️ Favourite button
         actions: [
           isFavouriteLoading
               ? const Padding(
@@ -346,7 +308,6 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
                     isFavourite ? Icons.favorite : Icons.favorite_border,
                   ),
                   color: isFavourite ? Colors.red : null,
-                  tooltip: isFavourite ? 'Remove Favourite' : 'Add Favourite',
                 ),
         ],
       ),
@@ -360,7 +321,6 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
           children: [
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 buildBookImage(context, frontImage),
 
@@ -405,38 +365,55 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
             const SizedBox(height: 10),
 
             Text(
-              widget.book['description'] ?? 'No description available',
+              widget.book['description']?.toString() ??
+                  'No description available',
               style: const TextStyle(fontSize: 16, height: 1.5),
             ),
 
             const SizedBox(height: 30),
-
-            SizedBox(
-              width: double.infinity,
-              height: 52,
-              child: ElevatedButton.icon(
-                onPressed: () async {
-                  final Uri amazonUrl = Uri.parse('https://amzn.in/d/0dnHQtdj');
-
-                  if (await canLaunchUrl(amazonUrl)) {
-                    await launchUrl(
-                      amazonUrl,
-                      mode: LaunchMode.externalApplication,
-                    );
-                  } else {
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Amazon link open nahi ho rahi'),
+            if (amazonUrl.isNotEmpty || appBookEnabled)
+              Column(
+                children: [
+                  if (amazonUrl.isNotEmpty)
+                    SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: ElevatedButton.icon(
+                        onPressed: openAmazonBook,
+                        icon: const Icon(Icons.shopping_cart_outlined),
+                        label: const Text(
+                          'Buy Book on Amazon',
+                          style: TextStyle(fontSize: 17),
                         ),
-                      );
-                    }
-                  }
-                },
-                icon: const Icon(Icons.shopping_cart_outlined),
-                label: const Text('Buy Book', style: TextStyle(fontSize: 18)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFFF9900),
+                          foregroundColor: Colors.white,
+                        ),
+                      ),
+                    ),
+
+                  if (amazonUrl.isNotEmpty && appBookEnabled)
+                    const SizedBox(height: 12),
+
+                  if (appBookEnabled)
+                    SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: ElevatedButton.icon(
+                        onPressed: openReadBook,
+                        icon: const Icon(Icons.menu_book),
+                        label: Text(
+                          isFree ? 'Read Book • FREE' : 'Read Book',
+                          style: const TextStyle(fontSize: 17),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF5B4BDB),
+                          foregroundColor: Colors.white,
+                        ),
+                      ),
+                    ),
+                ],
               ),
-            ),
 
             const SizedBox(height: 30),
 
