@@ -18,7 +18,7 @@ class _AuthorScreenState extends State<AuthorScreen> {
   String errorMessage = "";
 
   // Chrome / Web ke liye
-  final String apiUrl = "http://localhost:3000/api/author";
+  final String apiUrl = "https://mybookapp-3is1.onrender.com/api/author";
 
   @override
   void initState() {
@@ -133,7 +133,7 @@ class _AuthorScreenState extends State<AuthorScreen> {
                             author?["image"] != null &&
                                 author!["image"].toString().isNotEmpty
                             ? Image.network(
-                                "http://localhost:3000${author!["image"]}",
+                                author!["image"],
                                 fit: BoxFit.cover,
                                 errorBuilder: (context, error, stackTrace) {
                                   return const Icon(Icons.person, size: 75);

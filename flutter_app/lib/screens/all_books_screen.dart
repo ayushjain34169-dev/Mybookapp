@@ -3,8 +3,63 @@ import 'package:flutter/material.dart';
 import '../services/book_api.dart';
 import 'book_details_screen.dart';
 
-class AllBooksScreen extends StatelessWidget {
+class AllBooksScreen extends StatefulWidget {
   const AllBooksScreen({super.key});
+
+  @override
+  State<AllBooksScreen> createState() => _AllBooksScreenState();
+}
+
+class _AllBooksScreenState extends State<AllBooksScreen> {
+  late Future<List<dynamic>> booksFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    booksFuture = BookApi.getBooks();
+  }
+
+  void refreshBooks() {
+    setState(() {
+      booksFuture = BookApi.getBooks();
+    });
+  }
+
+  Future<void> changeCategory(
+    BuildContext context,
+    String bookId,
+    String? category,
+  ) async {
+    try {
+      await BookApi.updateBookCategory(bookId, category);
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Book category updated successfully')),
+      );
+
+      refreshBooks();
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Error: $e')));
+    }
+  }
+
+  String getCategoryName(dynamic category) {
+    switch (category?.toString()) {
+      case 'new_release':
+        return '🆕 New Release';
+
+      case 'trending':
+        return '🔥 Trending';
+
+      default:
+        return 'No Category';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -17,15 +72,13 @@ class AllBooksScreen extends StatelessWidget {
       ),
 
       body: FutureBuilder<List<dynamic>>(
-        future: BookApi.getBooks(),
+        future: booksFuture,
 
         builder: (context, snapshot) {
-          // Loading
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
 
-          // Error
           if (snapshot.hasError) {
             return Center(
               child: Text(
@@ -37,40 +90,49 @@ class AllBooksScreen extends StatelessWidget {
 
           final books = snapshot.data ?? [];
 
-          // No books
           if (books.isEmpty) {
             return const Center(
               child: Text('No books found', style: TextStyle(fontSize: 18)),
             );
           }
 
-          // Books list
           return ListView.builder(
             padding: const EdgeInsets.all(16),
-
             itemCount: books.length,
 
             itemBuilder: (context, index) {
               final book = books[index];
 
-              final imagePath = book['coverImage'] ?? '';
+              final imagePath = book['coverImage']?.toString() ?? '';
+
+              String imageUrl = '';
+
+              if (imagePath.isNotEmpty) {
+                if (imagePath.startsWith('http')) {
+                  imageUrl = imagePath;
+                } else {
+                  imageUrl = 'https://mybookapp-3is1.onrender.com$imagePath';
+                }
+              }
+
+              final bookId = book['_id']?.toString() ?? '';
+
+              final currentCategory = book['category'];
 
               return Card(
                 elevation: 4,
-
                 margin: const EdgeInsets.only(bottom: 15),
 
                 child: ListTile(
                   contentPadding: const EdgeInsets.all(10),
 
-                  // Book Cover
                   leading: SizedBox(
                     width: 65,
                     height: 85,
 
-                    child: imagePath.isNotEmpty
+                    child: imageUrl.isNotEmpty
                         ? Image.network(
-                            'http://localhost:3000$imagePath',
+                            imageUrl,
                             fit: BoxFit.cover,
 
                             errorBuilder: (context, error, stackTrace) {
@@ -80,34 +142,74 @@ class AllBooksScreen extends StatelessWidget {
                         : const Icon(Icons.book, size: 50),
                   ),
 
-                  // Book Title
                   title: Text(
-                    book['title'] ?? '',
-
+                    book['title']?.toString() ?? '',
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 17,
                     ),
                   ),
 
-                  // Author + Price
                   subtitle: Padding(
                     padding: const EdgeInsets.only(top: 6),
 
-                    child: Text(
-                      'Author: ${book['author'] ?? ''}\n'
-                      '₹${book['price'] ?? 0}',
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+
+                      children: [
+                        Text(
+                          'Author: ${book['author']?.toString() ?? ''}\n'
+                          '₹${book['price']?.toString() ?? '0'}',
+                        ),
+
+                        const SizedBox(height: 6),
+
+                        Text(
+                          getCategoryName(currentCategory),
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                      ],
                     ),
                   ),
 
-                  // Only Details Arrow
-                  trailing: const Icon(Icons.arrow_forward_ios, size: 18),
+                  trailing: PopupMenuButton<String>(
+                    icon: const Icon(Icons.more_vert),
 
-                  // Open Book Details
+                    onSelected: (value) {
+                      String? selectedCategory;
+
+                      if (value == 'new_release') {
+                        selectedCategory = 'new_release';
+                      } else if (value == 'trending') {
+                        selectedCategory = 'trending';
+                      } else if (value == 'none') {
+                        selectedCategory = null;
+                      }
+
+                      changeCategory(context, bookId, selectedCategory);
+                    },
+
+                    itemBuilder: (context) => [
+                      const PopupMenuItem(
+                        value: 'none',
+                        child: Text('No Category'),
+                      ),
+
+                      const PopupMenuItem(
+                        value: 'new_release',
+                        child: Text('🆕 New Release'),
+                      ),
+
+                      const PopupMenuItem(
+                        value: 'trending',
+                        child: Text('🔥 Trending'),
+                      ),
+                    ],
+                  ),
+
                   onTap: () {
                     Navigator.push(
                       context,
-
                       MaterialPageRoute(
                         builder: (context) => BookDetailsScreen(book: book),
                       ),

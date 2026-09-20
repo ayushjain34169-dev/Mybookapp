@@ -11,7 +11,7 @@ class NotificationScreen extends StatefulWidget {
 }
 
 class _NotificationScreenState extends State<NotificationScreen> {
-  static const String baseUrl = 'http://localhost:3000';
+  static const String baseUrl = 'https://mybookapp-3is1.onrender.com';
 
   List<dynamic> notifications = [];
   bool isLoading = true;
