@@ -75,6 +75,21 @@ const bookSchema = new mongoose.Schema({
   enum: ["favourite", "new_release", "trending"],
   default: null,
 },
+amazonUrl: {
+    type: String,
+    default: "",
+    trim: true,
+  },
+
+  appBookEnabled: {
+    type: Boolean,
+    default: false,
+  },
+
+  isFree: {
+    type: Boolean,
+    default: false,
+  },
 });
 
 module.exports = mongoose.model("Book", bookSchema);

@@ -592,10 +592,10 @@ app.post("/delete-book/:id", async (req, res) => {
 });
 // =====================================
 // ADD BOOK FORM
+// AMAZON + READ BOOK + FREE BOOK
 // =====================================
 
 app.get("/add-book", (req, res) => {
-
   res.send(`
     <html>
 
@@ -612,7 +612,7 @@ app.get("/add-book", (req, res) => {
         }
 
         .container {
-          max-width: 500px;
+          max-width: 550px;
           margin: auto;
           background: white;
           padding: 25px;
@@ -622,25 +622,72 @@ app.get("/add-book", (req, res) => {
 
         h2 {
           text-align: center;
+          color: #5B4BDB;
+          margin-bottom: 25px;
+        }
+
+        label {
+          display: block;
+          margin-top: 12px;
+          margin-bottom: 6px;
+          font-weight: bold;
         }
 
         input,
-        textarea {
+        textarea,
+        select {
           width: 100%;
           padding: 10px;
           margin-top: 6px;
           margin-bottom: 15px;
           box-sizing: border-box;
+          border: 1px solid #ddd;
+          border-radius: 7px;
+        }
+
+        textarea {
+          min-height: 100px;
+          resize: vertical;
+        }
+
+        .option-box {
+          background: #f7f8fc;
+          padding: 15px;
+          border-radius: 10px;
+          margin-bottom: 18px;
+        }
+
+        .option-row {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          margin: 10px 0;
+        }
+
+        .option-row input {
+          width: auto;
+          margin: 0;
+        }
+
+        .option-row label {
+          margin: 0;
+          font-weight: normal;
         }
 
         button {
           width: 100%;
           padding: 12px;
-          background: black;
+          background: #5B4BDB;
           color: white;
           border: none;
-          border-radius: 6px;
+          border-radius: 7px;
           font-size: 16px;
+          font-weight: bold;
+          cursor: pointer;
+        }
+
+        button:hover {
+          background: #4939c7;
         }
 
       </style>
@@ -651,7 +698,7 @@ app.get("/add-book", (req, res) => {
 
       <div class="container">
 
-        <h2>Add New Book</h2>
+        <h2>📚 Add New Book</h2>
 
         <form
           method="POST"
@@ -666,23 +713,52 @@ app.get("/add-book", (req, res) => {
             name="title"
             required
           >
-<label>Author Name:</label>
-<input type="text" name="authorName" required>
 
-<label>Education:</label>
-<input type="text" name="authorEducation" placeholder="MCA, BCA etc.">
+          <label>Author Name:</label>
 
-<label>Author Bio:</label>
-<textarea name="authorBio" placeholder="About the author..."></textarea>
+          <input
+            type="text"
+            name="authorName"
+            required
+          >
 
-<label>Author Email:</label>
-<input type="email" name="authorEmail">
+          <label>Education:</label>
 
-<label>Author Phone:</label>
-<input type="text" name="authorPhone">
+          <input
+            type="text"
+            name="authorEducation"
+            placeholder="MCA, BCA etc."
+          >
 
-<label>Author Image:</label>
-<input type="file" name="authorImage" accept="image/*" required>
+          <label>Author Bio:</label>
+
+          <textarea
+            name="authorBio"
+            placeholder="About the author..."
+          ></textarea>
+
+          <label>Author Email:</label>
+
+          <input
+            type="email"
+            name="authorEmail"
+          >
+
+          <label>Author Phone:</label>
+
+          <input
+            type="text"
+            name="authorPhone"
+          >
+
+          <label>Author Image:</label>
+
+          <input
+            type="file"
+            name="authorImage"
+            accept="image/*"
+            required
+          >
 
           <label>Price:</label>
 
@@ -706,43 +782,113 @@ app.get("/add-book", (req, res) => {
             accept="image/*"
             required
           >
+
           <label>Front Image:</label>
 
-<input
-  type="file"
-  name="frontImage"
-  accept="image/*"
->
-  
-<label>Back Image:</label>
+          <input
+            type="file"
+            name="frontImage"
+            accept="image/*"
+          >
 
-<input
-  type="file"
-  name="backImage"
-  accept="image/*"
->
+          <label>Back Image:</label>
 
-<label>Book Category:</label>
+          <input
+            type="file"
+            name="backImage"
+            accept="image/*"
+          >
 
-<select
-  name="category"
-  required
-  style="
-    width: 100%;
-    padding: 10px;
-    margin-top: 6px;
-    margin-bottom: 15px;
-    box-sizing: border-box;
-  "
->
-  <option value="">No Category</option>
-<option value="new_release">🆕 New Release</option>
-<option value="trending">🔥 Trending</option>
-</select>
+          <label>Book Category:</label>
 
-<button type="submit">
-  Add Book
-</button>
+          <select name="category">
+
+            <option value="">
+              No Category
+            </option>
+
+            <option value="new_release">
+              🆕 New Release
+            </option>
+
+            <option value="trending">
+              🔥 Trending
+            </option>
+
+          </select>
+
+          <!-- ================================= -->
+          <!-- BOOK ACCESS OPTIONS -->
+          <!-- ================================= -->
+
+          <div class="option-box">
+
+            <h3>
+              📖 Book Access
+            </h3>
+
+            <div class="option-row">
+
+              <input
+                type="checkbox"
+                id="appBookEnabled"
+                name="appBookEnabled"
+                value="true"
+              >
+
+              <label for="appBookEnabled">
+                Available to Read in AJ Reads
+              </label>
+
+            </div>
+
+            <div class="option-row">
+
+              <input
+                type="checkbox"
+                id="isFree"
+                name="isFree"
+                value="true"
+              >
+
+              <label for="isFree">
+                🆓 Free Book
+              </label>
+
+            </div>
+
+          </div>
+
+          <!-- ================================= -->
+          <!-- AMAZON -->
+          <!-- ================================= -->
+
+          <div class="option-box">
+
+            <h3>
+              🛒 Amazon
+            </h3>
+
+            <label>
+              Amazon Book URL
+            </label>
+
+            <input
+              type="url"
+              name="amazonUrl"
+              placeholder="https://amzn.in/..."
+            >
+
+            <small>
+              Amazon par book available ho to uska URL yahan paste karein.
+            </small>
+
+          </div>
+
+          <button type="submit">
+            Add Book
+          </button>
+
         </form>
 
       </div>
@@ -834,14 +980,45 @@ const book = new Book({
   },
 
   price: req.body.price,
-  description: req.body.description,
+
+  description: req.body.description || "",
+
   coverImage: coverImageUrl,
+
   frontImage: frontImageUrl,
+
   backImage: backImageUrl,
+
+  // ================================
+  // BOOK CATEGORY
+  // ================================
+
+  category: req.body.category || null,
+
+  // ================================
+  // AMAZON
+  // ================================
+
+  amazonUrl: req.body.amazonUrl || "",
+
+  // ================================
+  // READ BOOK
+  // ================================
+
+  appBookEnabled:
+    req.body.appBookEnabled === "true",
+
+  // ================================
+  // FREE BOOK
+  // ================================
+
+  isFree:
+    req.body.isFree === "true",
+});
 
   // Book category
   category: req.body.category || null,
-});
+
       await book.save();
 
       // =================================
