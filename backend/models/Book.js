@@ -71,25 +71,43 @@ const bookSchema = new mongoose.Schema({
 
   // Home screen category
   category: {
-  type: String,
-  enum: ["favourite", "new_release", "trending"],
-  default: null,
-},
-amazonUrl: {
+    type: String,
+    enum: [
+      "favourite",
+      "new_release",
+      "trending",
+    ],
+    default: null,
+  },
+
+  // Amazon book link
+  amazonUrl: {
     type: String,
     default: "",
     trim: true,
   },
 
+  // Book available inside AJ Reads
   appBookEnabled: {
     type: Boolean,
     default: false,
   },
 
+  // Free book or paid book
   isFree: {
     type: Boolean,
     default: false,
   },
+
+  // PDF book URL
+  pdfUrl: {
+    type: String,
+    default: "",
+    trim: true,
+  },
 });
 
-module.exports = mongoose.model("Book", bookSchema);
+module.exports = mongoose.model(
+  "Book",
+  bookSchema
+);

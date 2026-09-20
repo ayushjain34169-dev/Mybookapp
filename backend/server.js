@@ -798,6 +798,17 @@ app.get("/add-book", (req, res) => {
             name="backImage"
             accept="image/*"
           >
+          <label>Book PDF:</label>
+<input
+  type="file"
+  name="bookPdf"
+  accept="application/pdf"
+  required
+>
+
+<small>
+  AJ Reads mein read karne ke liye book ki PDF upload karein.
+</small>
 
           <label>Book Category:</label>
 
@@ -911,6 +922,7 @@ app.post(
   { name: "frontImage", maxCount: 1 },
   { name: "backImage", maxCount: 1 },
   { name: "authorImage", maxCount: 1 },
+  { name: "bookPdf", maxCount: 1 },
 ]),
 
   async (req, res) => {
@@ -922,6 +934,7 @@ let coverImageUrl = "";
 let frontImageUrl = "";
 let backImageUrl = "";
 let authorImageUrl = "";
+let pdfUrl = "";
 
 if (req.files?.coverImage?.[0]) {
   const result = await cloudinary.uploader.upload(
@@ -964,6 +977,17 @@ if (req.files?.authorImage?.[0]) {
   );
 
   authorImageUrl = result.secure_url;
+}
+if (req.files?.bookPdf?.[0]) {
+  const result = await cloudinary.uploader.upload(
+    req.files.bookPdf[0].path,
+    {
+      folder: "mybookapp/pdfs",
+      resource_type: "raw",
+    }
+  );
+
+  pdfUrl = result.secure_url;
 }
 const book = new Book({
   title: req.body.title,
@@ -1014,6 +1038,7 @@ const book = new Book({
 
   isFree:
     req.body.isFree === "true",
+    pdfUrl: pdfUrl,
 });
 
   // Book category
