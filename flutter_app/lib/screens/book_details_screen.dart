@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'pdf_reader_screen.dart';
+
 import '../services/book_api.dart';
 
 class BookDetailsScreen extends StatefulWidget {
@@ -194,15 +196,34 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
   void openReadBook() {
     final bool isFree = widget.book['isFree'] == true;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          isFree
-              ? 'Free book reading screen next step me open hogi.'
-              : 'Payment ke baad book read kar sakenge.',
+    final String pdfUrl = widget.book['pdfUrl']?.toString().trim() ?? '';
+
+    if (pdfUrl.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Is book ki PDF available nahi hai')),
+      );
+      return;
+    }
+
+    if (isFree) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => PdfReaderScreen(
+            pdfUrl: pdfUrl,
+            title: widget.book['title']?.toString() ?? 'Read Book',
+          ),
         ),
-      ),
-    );
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Paid book hai. Payment system next step mein add hoga.',
+          ),
+        ),
+      );
+    }
   }
 
   Widget buildAuthorSection() {

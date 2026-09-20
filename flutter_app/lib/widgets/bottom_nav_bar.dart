@@ -32,9 +32,9 @@ class BottomNavBar extends StatelessWidget {
         ),
 
         BottomNavigationBarItem(
-          icon: Icon(Icons.edit_outlined),
-          activeIcon: Icon(Icons.edit),
-          label: 'Author',
+          icon: Icon(Icons.menu_book_outlined),
+          activeIcon: Icon(Icons.menu_book),
+          label: 'Read',
         ),
 
         BottomNavigationBarItem(
