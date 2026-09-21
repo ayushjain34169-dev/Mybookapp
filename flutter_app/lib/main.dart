@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'screens/home_screen.dart';
 import 'screens/all_books_screen.dart';
-import 'screens/author_screen.dart';
+import 'screens/read_screen.dart';
 import 'screens/profile_screen.dart';
 import 'widgets/bottom_nav_bar.dart';
 
@@ -18,10 +18,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'My Book App',
-      theme: ThemeData(
-        primarySwatch: Colors.indigo,
-        useMaterial3: true,
-      ),
+      theme: ThemeData(primarySwatch: Colors.indigo, useMaterial3: true),
       home: const MainScreen(),
     );
   }
@@ -40,7 +37,7 @@ class _MainScreenState extends State<MainScreen> {
   final List<Widget> screens = const [
     HomeScreen(),
     AllBooksScreen(),
-    AuthorScreen(),
+    ReadScreen(),
     ProfileScreen(),
   ];
 

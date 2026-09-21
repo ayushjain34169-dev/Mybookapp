@@ -204,7 +204,7 @@ class _HomeScreenState extends State<HomeScreen> {
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -488,7 +488,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 borderRadius: BorderRadius.circular(22),
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFF6C5CE7).withOpacity(0.20),
+                    color: const Color(0xFF6C5CE7).withValues(alpha: 0.20),
                     blurRadius: 15,
                     offset: const Offset(0, 7),
                   ),
@@ -514,7 +514,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         Text(
                           'Discover books that inspire, inform and entertain.',
                           style: TextStyle(
-                            color: Colors.white.withOpacity(0.90),
+                            color: Colors.white.withValues(alpha: 0.90),
                             fontSize: 14,
                             height: 1.4,
                           ),
@@ -681,7 +681,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 borderRadius: BorderRadius.circular(18),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.04),
+                    color: Colors.black.withValues(alpha: 0.04),
                     blurRadius: 10,
                     offset: const Offset(0, 4),
                   ),

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../services/book_api.dart';
-import 'book_details_screen.dart';
+import 'pdf_reader_screen.dart';
 
 class ReadScreen extends StatefulWidget {
   const ReadScreen({super.key});
@@ -43,6 +43,36 @@ class _ReadScreenState extends State<ReadScreen> {
     }
   }
 
+  void openBook(dynamic book) {
+    final String pdfUrl = book['pdfUrl']?.toString().trim() ?? '';
+
+    final bool isFree = book['isFree'] == true;
+
+    if (pdfUrl.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Is book ki PDF available nahi hai')),
+      );
+      return;
+    }
+
+    if (!isFree) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Ye paid book hai. Payment required.')),
+      );
+      return;
+    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => PdfReaderScreen(
+          pdfUrl: pdfUrl,
+          title: book['title']?.toString() ?? 'Read Book',
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -68,8 +98,11 @@ class _ReadScreenState extends State<ReadScreen> {
               itemBuilder: (context, index) {
                 final book = books[index];
 
+                final bool isFree = book['isFree'] == true;
+
                 return Card(
                   margin: const EdgeInsets.only(bottom: 15),
+
                   child: ListTile(
                     contentPadding: const EdgeInsets.all(10),
 
@@ -97,19 +130,12 @@ class _ReadScreenState extends State<ReadScreen> {
                       style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
 
-                    subtitle: Text(
-                      book['isFree'] == true ? 'FREE' : 'Paid Book',
-                    ),
+                    subtitle: Text(isFree ? 'FREE • Read Now' : 'Paid Book'),
 
-                    trailing: const Icon(Icons.arrow_forward_ios, size: 18),
+                    trailing: const Icon(Icons.menu_book, size: 25),
 
                     onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => BookDetailsScreen(book: book),
-                        ),
-                      );
+                      openBook(book);
                     },
                   ),
                 );
