@@ -1,19 +1,13 @@
+const fs = require("fs");
+require("dotenv").config();
+
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
 const multer = require("multer");
-const cloudinary = require("cloudinary").v2; 
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-});
-const { createClient } = require("@supabase/supabase-js");
+const cloudinary = require("cloudinary").v2;
 
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SECRET_KEY
-);
+const { createClient } = require("@supabase/supabase-js");
 
 const Book = require("./models/Book");
 const Author = require("./models/author");
@@ -23,14 +17,42 @@ const Favourite = require("./models/Favourite");
 const app = express();
 
 // =====================================
-// MULTER IMAGE UPLOAD SETUP
+// CLOUDINARY
 // =====================================
 
-const storage = multer.memoryStorage();
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
+// =====================================
+// SUPABASE
+// =====================================
+
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SECRET_KEY
+);
+
+// =====================================
+// MULTER
+// =====================================
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, "uploads/");
+  },
+
+  filename: (req, file, cb) => {
+    cb(null, Date.now() + "-" + file.originalname);
+  },
+});
+
 const upload = multer({
-  storage: storage,
+  storage,
   limits: {
-    fileSize: 100 * 1024 * 1024, // 100 MB
+    fileSize: 100 * 1024 * 1024,
   },
 });
 
@@ -39,38 +61,33 @@ const upload = multer({
 // =====================================
 
 app.use(cors());
-
 app.use(express.json());
-
-app.use(
-  express.urlencoded({
-    extended: true,
-  })
-);
-
+app.use(express.urlencoded({ extended: true }));
 app.use("/uploads", express.static("uploads"));
 
 // =====================================
-// MONGODB CONNECTION
+// MONGODB
 // =====================================
 
-mongoose.connect(
-  process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/mybookapp",
-  {
-    dbName: "mybookapp",
-  }
-)
+mongoose
+  .connect(
+    process.env.MONGODB_URI ||
+      "mongodb://127.0.0.1:27017/mybookapp",
+    {
+      dbName: "mybookapp",
+    }
+  )
   .then(() => {
     console.log("MongoDB Connected");
 
     const PORT = process.env.PORT || 3000;
 
-app.listen(PORT, "0.0.0.0", () => {
-  console.log(`Server running on port ${PORT}`);
-});
+    app.listen(PORT, "0.0.0.0", () => {
+      console.log(`Server running on port ${PORT}`);
+    });
   })
   .catch((error) => {
-    console.log("MongoDB Connection Error:", error);
+    console.error("MongoDB Connection Error:", error);
   });
 
 // =====================================
@@ -87,8 +104,7 @@ app.get("/", (req, res) => {
 
 app.get("/books", async (req, res) => {
   try {
-    const books = await Book.find();
-
+    const books = await Book.find().sort({ createdAt: -1 });
     res.json(books);
   } catch (error) {
     res.status(500).json({
@@ -96,8 +112,9 @@ app.get("/books", async (req, res) => {
     });
   }
 });
+
 // =====================================
-// ADD BOOK TO FAVOURITES
+// ADD FAVOURITE
 // =====================================
 
 app.post("/favourites", async (req, res) => {
@@ -129,8 +146,6 @@ app.post("/favourites", async (req, res) => {
       });
     }
 
-    console.error("Add Favourite Error:", error);
-
     res.status(500).json({
       success: false,
       message: error.message,
@@ -139,7 +154,7 @@ app.post("/favourites", async (req, res) => {
 });
 
 // =====================================
-// REMOVE BOOK FROM FAVOURITES
+// REMOVE FAVOURITE
 // =====================================
 
 app.delete("/favourites", async (req, res) => {
@@ -161,12 +176,10 @@ app.delete("/favourites", async (req, res) => {
     res.json({
       success: true,
       message: result
-          ? "Book removed from favourites"
-          : "Book was not in favourites",
+        ? "Book removed from favourites"
+        : "Book was not in favourites",
     });
   } catch (error) {
-    console.error("Remove Favourite Error:", error);
-
     res.status(500).json({
       success: false,
       message: error.message,
@@ -189,16 +202,15 @@ app.get("/favourites/:userId", async (req, res) => {
       favourites,
     });
   } catch (error) {
-    console.error("Get Favourite Error:", error);
-
     res.status(500).json({
       success: false,
       message: error.message,
     });
   }
 });
+
 // =====================================
-// CHECK FAVOURITE STATUS
+// CHECK FAVOURITE
 // =====================================
 
 app.get("/favourites/check", async (req, res) => {
@@ -222,14 +234,13 @@ app.get("/favourites/check", async (req, res) => {
       isFavourite: !!favourite,
     });
   } catch (error) {
-    console.error("Check Favourite Error:", error);
-
     res.status(500).json({
       success: false,
       message: error.message,
     });
   }
 });
+
 // =====================================
 // UPDATE BOOK CATEGORY
 // =====================================
@@ -253,12 +264,8 @@ app.put("/books/:id/category", async (req, res) => {
 
     const book = await Book.findByIdAndUpdate(
       req.params.id,
-      {
-        category: category,
-      },
-      {
-        new: true,
-      }
+      { category },
+      { new: true }
     );
 
     if (!book) {
@@ -271,20 +278,18 @@ app.put("/books/:id/category", async (req, res) => {
     res.json({
       success: true,
       message: "Book category updated successfully",
-      book: book,
+      book,
     });
   } catch (error) {
-    console.error("Category Update Error:", error);
-
     res.status(500).json({
       success: false,
       message: error.message,
     });
   }
 });
+
 // =====================================
 // REMOVE OLD FAVOURITE CATEGORY
-// BOOKS WILL NOT BE DELETED
 // =====================================
 
 app.put("/books/remove-old-favourite", async (req, res) => {
@@ -300,8 +305,6 @@ app.put("/books/remove-old-favourite", async (req, res) => {
       modifiedCount: result.modifiedCount,
     });
   } catch (error) {
-    console.error("Remove Category Error:", error);
-
     res.status(500).json({
       success: false,
       message: error.message,
@@ -309,749 +312,641 @@ app.put("/books/remove-old-favourite", async (req, res) => {
   }
 });
 // =====================================
-// DEVELOPER DELETE BOOK PAGE
+// DELETE BOOK PAGE
 // =====================================
 
 app.get("/delete-book", async (req, res) => {
   try {
-    const books = await Book.find();
+    const books = await Book.find().sort({ createdAt: -1 });
 
-    let bookList = "";
-
-    books.forEach((book) => {
-      bookList += `
+    const bookList =
+      books.length > 0
+        ? books
+            .map(
+              (book) => `
         <div class="book">
-
-          <div class="info">
-
-            <h3>${book.title}</h3>
-
-            <p>
-              <b>Author:</b>
-              ${book.author || ""}
-            </p>
-
-            <p>
-              <b>Price:</b>
-              ₹${book.price || 0}
-            </p>
-
-            <p>
-              <b>Book ID:</b>
-              ${book._id}
-            </p>
-
+          <div>
+            <h3>${book.title || ""}</h3>
+            <p><b>Author:</b> ${book.author || ""}</p>
+            <p><b>Price:</b> ₹${book.price || 0}</p>
+            <p><b>ID:</b> ${book._id}</p>
           </div>
 
           <form
             method="POST"
             action="/delete-book/${book._id}"
-            onsubmit="
-              return confirm(
-                'Kya aap is book ko permanently delete karna chahte hain?'
-              );
-            "
+            onsubmit="return confirm('Kya aap is book ko permanently delete karna chahte hain?');"
           >
-
-            <button type="submit">
-              Delete Book
-            </button>
-
+            <button type="submit">Delete Book</button>
           </form>
-
         </div>
-      `;
-    });
-
-    if (books.length === 0) {
-      bookList = `
-        <div class="empty">
-          <h3>No books found</h3>
-        </div>
-      `;
-    }
+      `
+            )
+            .join("")
+        : `<div class="empty"><h3>No books found</h3></div>`;
 
     res.send(`
-      <html>
+<!DOCTYPE html>
+<html>
+<head>
+<title>Delete Books</title>
+<style>
+body{
+  font-family:Arial;
+  background:#f5f5f5;
+  padding:30px;
+}
+.container{
+  max-width:800px;
+  margin:auto;
+}
+h1{text-align:center}
+.book{
+  background:white;
+  padding:20px;
+  margin:15px 0;
+  border-radius:12px;
+  box-shadow:0 4px 12px rgba(0,0,0,.1);
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:20px;
+}
+button{
+  background:#d32f2f;
+  color:white;
+  border:0;
+  padding:11px 18px;
+  border-radius:6px;
+  cursor:pointer;
+}
+.links{
+  text-align:center;
+  margin-top:25px;
+}
+.links a{
+  display:inline-block;
+  margin:5px;
+  padding:10px 18px;
+  background:#000;
+  color:#fff;
+  text-decoration:none;
+  border-radius:6px;
+}
+.empty{
+  background:white;
+  padding:30px;
+  text-align:center;
+  border-radius:12px;
+}
+</style>
+</head>
 
-      <head>
+<body>
 
-        <title>Delete Books - Developer</title>
+<div class="container">
 
-        <style>
+<h1>Delete Books</h1>
 
-          body {
-            font-family: Arial, sans-serif;
-            background: #f5f5f5;
-            padding: 30px;
-          }
+<p style="text-align:center;color:#666">
+Developer Book Management
+</p>
 
-          .container {
-            max-width: 800px;
-            margin: auto;
-          }
+${bookList}
 
-          h1 {
-            text-align: center;
-            margin-bottom: 10px;
-          }
+<div class="links">
+<a href="/add-book">Add New Book</a>
+<a href="/books">View Books API</a>
+</div>
 
-          .developer {
-            text-align: center;
-            color: #666;
-            margin-bottom: 25px;
-          }
+</div>
 
-          .book {
-            background: white;
-            padding: 20px;
-            margin-bottom: 15px;
-            border-radius: 12px;
-
-            box-shadow:
-              0 4px 12px rgba(0,0,0,0.1);
-
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-
-            gap: 20px;
-          }
-
-          .book h3 {
-            margin-top: 0;
-            margin-bottom: 12px;
-          }
-
-          .book p {
-            margin: 7px 0;
-          }
-
-          button {
-            background: #d32f2f;
-            color: white;
-            border: none;
-
-            padding: 11px 18px;
-
-            border-radius: 6px;
-
-            cursor: pointer;
-
-            font-size: 15px;
-          }
-
-          button:hover {
-            background: #b71c1c;
-          }
-
-          .empty {
-            background: white;
-            padding: 30px;
-
-            text-align: center;
-
-            border-radius: 12px;
-          }
-
-          .links {
-            text-align: center;
-            margin-top: 25px;
-          }
-
-          .links a {
-            display: inline-block;
-
-            margin: 5px;
-
-            padding: 10px 18px;
-
-            background: black;
-
-            color: white;
-
-            text-decoration: none;
-
-            border-radius: 6px;
-          }
-
-        </style>
-
-      </head>
-
-      <body>
-
-        <div class="container">
-
-          <h1>
-            Delete Books
-          </h1>
-
-          <div class="developer">
-            Developer Book Management
-          </div>
-
-          ${bookList}
-
-          <div class="links">
-
-            <a href="/add-book">
-              Add New Book
-            </a>
-
-            <a href="/books">
-              View Books API
-            </a>
-
-          </div>
-
-        </div>
-
-      </body>
-
-      </html>
-    `);
-
+</body>
+</html>
+`);
   } catch (error) {
-
     res.status(500).send(error.message);
-
   }
 });
 
 // =====================================
-// DEVELOPER DELETE BOOK
+// DELETE BOOK
 // =====================================
 
 app.post("/delete-book/:id", async (req, res) => {
-
   try {
-
     const book = await Book.findByIdAndDelete(req.params.id);
 
     if (!book) {
-
-      return res.status(404).send(
-        "Book not found"
-      );
-
+      return res.status(404).send("Book not found");
     }
 
     res.send(`
-      <html>
+<html>
+<head>
+<title>Book Deleted</title>
+</head>
 
-      <head>
-        <title>Book Deleted</title>
-      </head>
+<body style="font-family:Arial;text-align:center;padding:50px">
 
-      <body
-        style="
-          font-family: Arial;
-          text-align: center;
-          padding: 50px;
-        "
-      >
+<h2>Book Deleted Successfully! ✅</h2>
 
-        <h2>
-          Book Deleted Successfully! ✅
-        </h2>
+<p>
+Deleted Book:
+<b>${book.title}</b>
+</p>
 
-        <p>
-          Deleted Book:
-          <b>${book.title}</b>
-        </p>
+<br>
 
-        <br>
+<a href="/delete-book">
+Back to Delete Books
+</a>
 
-        <a href="/delete-book">
-          Back to Delete Books
-        </a>
+<br><br>
 
-        <br><br>
+<a href="/add-book">
+Add New Book
+</a>
 
-        <a href="/add-book">
-          Add New Book
-        </a>
-
-      </body>
-
-      </html>
-    `);
-
+</body>
+</html>
+`);
   } catch (error) {
-
-    res.status(500).send(
-      error.message
-    );
-
+    res.status(500).send(error.message);
   }
-
 });
+
 // =====================================
 // ADD BOOK FORM
-// AMAZON + READ BOOK + FREE BOOK
 // =====================================
 
 app.get("/add-book", (req, res) => {
   res.send(`
-    <html>
+<!DOCTYPE html>
+<html>
 
-    <head>
+<head>
 
-      <title>Add Book</title>
+<title>Add Book</title>
 
-      <style>
+<style>
 
-        body {
-          font-family: Arial;
-          background: #f5f5f5;
-          padding: 30px;
-        }
+body{
+  font-family:Arial;
+  background:#f5f5f5;
+  padding:30px;
+}
 
-        .container {
-          max-width: 550px;
-          margin: auto;
-          background: white;
-          padding: 25px;
-          border-radius: 12px;
-          box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-        }
+.container{
+  max-width:550px;
+  margin:auto;
+  background:white;
+  padding:25px;
+  border-radius:12px;
+  box-shadow:0 4px 15px rgba(0,0,0,.1);
+}
 
-        h2 {
-          text-align: center;
-          color: #5B4BDB;
-          margin-bottom: 25px;
-        }
+h2{
+  text-align:center;
+  color:#5B4BDB;
+}
 
-        label {
-          display: block;
-          margin-top: 12px;
-          margin-bottom: 6px;
-          font-weight: bold;
-        }
+label{
+  display:block;
+  margin-top:12px;
+  margin-bottom:6px;
+  font-weight:bold;
+}
 
-        input,
-        textarea,
-        select {
-          width: 100%;
-          padding: 10px;
-          margin-top: 6px;
-          margin-bottom: 15px;
-          box-sizing: border-box;
-          border: 1px solid #ddd;
-          border-radius: 7px;
-        }
+input,
+textarea,
+select{
+  width:100%;
+  padding:10px;
+  margin-bottom:15px;
+  box-sizing:border-box;
+  border:1px solid #ddd;
+  border-radius:7px;
+}
 
-        textarea {
-          min-height: 100px;
-          resize: vertical;
-        }
+textarea{
+  min-height:100px;
+}
 
-        .option-box {
-          background: #f7f8fc;
-          padding: 15px;
-          border-radius: 10px;
-          margin-bottom: 18px;
-        }
+.option-box{
+  background:#f7f8fc;
+  padding:15px;
+  border-radius:10px;
+  margin-bottom:18px;
+}
 
-        .option-row {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          margin: 10px 0;
-        }
+.option-row{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin:10px 0;
+}
 
-        .option-row input {
-          width: auto;
-          margin: 0;
-        }
+.option-row input{
+  width:auto;
+  margin:0;
+}
 
-        .option-row label {
-          margin: 0;
-          font-weight: normal;
-        }
+.option-row label{
+  margin:0;
+  font-weight:normal;
+}
 
-        button {
-          width: 100%;
-          padding: 12px;
-          background: #5B4BDB;
-          color: white;
-          border: none;
-          border-radius: 7px;
-          font-size: 16px;
-          font-weight: bold;
-          cursor: pointer;
-        }
+button{
+  width:100%;
+  padding:12px;
+  background:#5B4BDB;
+  color:white;
+  border:0;
+  border-radius:7px;
+  font-size:16px;
+  font-weight:bold;
+  cursor:pointer;
+}
 
-        button:hover {
-          background: #4939c7;
-        }
+</style>
 
-      </style>
+</head>
 
-    </head>
+<body>
 
-    <body>
+<div class="container">
 
-      <div class="container">
+<h2>📚 Add New Book</h2>
 
-        <h2>📚 Add New Book</h2>
+<form
+method="POST"
+action="/add-book"
+enctype="multipart/form-data"
+>
 
-        <form
-          method="POST"
-          action="/add-book"
-          enctype="multipart/form-data"
-        >
+<label>Book Title:</label>
 
-          <label>Book Title:</label>
-
-          <input
-            type="text"
-            name="title"
-            required
-          >
-
-          <label>Author Name:</label>
-
-          <input
-            type="text"
-            name="authorName"
-            required
-          >
-
-          <label>Education:</label>
-
-          <input
-            type="text"
-            name="authorEducation"
-            placeholder="MCA, BCA etc."
-          >
-
-          <label>Author Bio:</label>
-
-          <textarea
-            name="authorBio"
-            placeholder="About the author..."
-          ></textarea>
-
-          <label>Author Email:</label>
-
-          <input
-            type="email"
-            name="authorEmail"
-          >
-
-          <label>Author Phone:</label>
-
-          <input
-            type="text"
-            name="authorPhone"
-          >
-
-          <label>Author Image:</label>
-
-          <input
-            type="file"
-            name="authorImage"
-            accept="image/*"
-            required
-          >
-
-          <label>Price:</label>
-
-          <input
-            type="number"
-            name="price"
-            required
-          >
-
-          <label>Description:</label>
-
-          <textarea
-            name="description"
-          ></textarea>
-
-          <label>Book Cover:</label>
-
-          <input
-            type="file"
-            name="coverImage"
-            accept="image/*"
-            required
-          >
-
-          <label>Front Image:</label>
-
-          <input
-            type="file"
-            name="frontImage"
-            accept="image/*"
-          >
-
-          <label>Back Image:</label>
-
-          <input
-            type="file"
-            name="backImage"
-            accept="image/*"
-          >
-          <label>Book PDF:</label>
 <input
-  type="file"
-  name="bookPdf"
-  accept="application/pdf"
-  required
+type="text"
+name="title"
+required
+>
+
+<label>Author Name:</label>
+
+<input
+type="text"
+name="authorName"
+required
+>
+
+<label>Education:</label>
+
+<input
+type="text"
+name="authorEducation"
+placeholder="MCA, BCA etc."
+>
+
+<label>Author Bio:</label>
+
+<textarea
+name="authorBio"
+placeholder="About the author..."
+></textarea>
+
+<label>Author Email:</label>
+
+<input
+type="email"
+name="authorEmail"
+>
+
+<label>Author Phone:</label>
+
+<input
+type="text"
+name="authorPhone"
+>
+
+<label>Author Image:</label>
+
+<input
+type="file"
+name="authorImage"
+accept="image/*"
+required
+>
+
+<label>Price:</label>
+
+<input
+type="number"
+name="price"
+required
+>
+
+<label>Description:</label>
+
+<textarea name="description"></textarea>
+
+<label>Book Cover:</label>
+
+<input
+type="file"
+name="coverImage"
+accept="image/*"
+required
+>
+
+<label>Front Image:</label>
+
+<input
+type="file"
+name="frontImage"
+accept="image/*"
+>
+
+<label>Back Image:</label>
+
+<input
+type="file"
+name="backImage"
+accept="image/*"
+>
+
+<label>Book PDF:</label>
+
+<input
+type="file"
+name="bookPdf"
+accept="application/pdf"
+required
 >
 
 <small>
-  AJ Reads mein read karne ke liye book ki PDF upload karein.
+AJ Reads mein read karne ke liye book ki PDF upload karein.
 </small>
 
-          <label>Book Category:</label>
+<br><br>
 
-          <select name="category">
+<label>Book Category:</label>
 
-            <option value="">
-              No Category
-            </option>
+<select name="category">
 
-            <option value="new_release">
-              🆕 New Release
-            </option>
+<option value="">No Category</option>
 
-            <option value="trending">
-              🔥 Trending
-            </option>
+<option value="new_release">
+🆕 New Release
+</option>
 
-          </select>
+<option value="trending">
+🔥 Trending
+</option>
 
-          <!-- ================================= -->
-          <!-- BOOK ACCESS OPTIONS -->
-          <!-- ================================= -->
+</select>
 
-          <div class="option-box">
+<div class="option-box">
 
-            <h3>
-              📖 Book Access
-            </h3>
+<h3>📖 Book Access</h3>
 
-            <div class="option-row">
+<div class="option-row">
 
-              <input
-                type="checkbox"
-                id="appBookEnabled"
-                name="appBookEnabled"
-                value="true"
-              >
+<input
+type="checkbox"
+id="appBookEnabled"
+name="appBookEnabled"
+value="true"
+>
 
-              <label for="appBookEnabled">
-                Available to Read in AJ Reads
-              </label>
+<label for="appBookEnabled">
+Available to Read in AJ Reads
+</label>
 
-            </div>
+</div>
 
-            <div class="option-row">
+<div class="option-row">
 
-              <input
-                type="checkbox"
-                id="isFree"
-                name="isFree"
-                value="true"
-              >
+<input
+type="checkbox"
+id="isFree"
+name="isFree"
+value="true"
+>
 
-              <label for="isFree">
-                🆓 Free Book
-              </label>
+<label for="isFree">
+🆓 Free Book
+</label>
 
-            </div>
+</div>
 
-          </div>
+</div>
 
-          <!-- ================================= -->
-          <!-- AMAZON -->
-          <!-- ================================= -->
+<div class="option-box">
 
-          <div class="option-box">
+<h3>🛒 Amazon</h3>
 
-            <h3>
-              🛒 Amazon
-            </h3>
+<label>Amazon Book URL</label>
 
-            <label>
-              Amazon Book URL
-            </label>
+<input
+type="url"
+name="amazonUrl"
+placeholder="https://amzn.in/..."
+>
 
-            <input
-              type="url"
-              name="amazonUrl"
-              placeholder="https://amzn.in/..."
-            >
+<small>
+Amazon par book available ho to uska URL yahan paste karein.
+</small>
 
-            <small>
-              Amazon par book available ho to uska URL yahan paste karein.
-            </small>
+</div>
 
-          </div>
+<button type="submit">
+Add Book
+</button>
 
-          <button type="submit">
-            Add Book
-          </button>
+</form>
 
-        </form>
+</div>
 
-      </div>
-
-    </body>
-
-    </html>
-  `);
+</body>
+</html>
+`);
 });
-
 // =====================================
-// SAVE BOOK + IMAGE
-// CREATE NOTIFICATION
+// SAVE BOOK
 // =====================================
 
 app.post(
   "/add-book",
   upload.fields([
-  { name: "coverImage", maxCount: 1 },
-  { name: "frontImage", maxCount: 1 },
-  { name: "backImage", maxCount: 1 },
-  { name: "authorImage", maxCount: 1 },
-  { name: "bookPdf", maxCount: 1 },
-]),
-
+    { name: "coverImage", maxCount: 1 },
+    { name: "frontImage", maxCount: 1 },
+    { name: "backImage", maxCount: 1 },
+    { name: "authorImage", maxCount: 1 },
+    { name: "bookPdf", maxCount: 1 },
+  ]),
   async (req, res) => {
-
     try {
+      let coverImageUrl = "";
+      let frontImageUrl = "";
+      let backImageUrl = "";
+      let authorImageUrl = "";
+      let pdfUrl = "";
 
+      // =================================
+      // COVER IMAGE
+      // =================================
 
-let coverImageUrl = "";
-let frontImageUrl = "";
-let backImageUrl = "";
-let authorImageUrl = "";
-let pdfUrl = "";
+      if (req.files?.coverImage?.[0]) {
+        const result = await cloudinary.uploader.upload(
+          req.files.coverImage[0].path,
+          {
+            folder: "mybookapp/books",
+          }
+        );
 
-if (req.files?.coverImage?.[0]) {
-  const result = await cloudinary.uploader.upload(
-    req.files.coverImage[0].path,
-    {
-      folder: "mybookapp/books",
-    }
-  );
+        coverImageUrl = result.secure_url;
+      }
 
-  coverImageUrl = result.secure_url;
-}
+      // =================================
+      // FRONT IMAGE
+      // =================================
 
-if (req.files?.frontImage?.[0]) {
-  const result = await cloudinary.uploader.upload(
-    req.files.frontImage[0].path,
-    {
-      folder: "mybookapp/books",
-    }
-  );
+      if (req.files?.frontImage?.[0]) {
+        const result = await cloudinary.uploader.upload(
+          req.files.frontImage[0].path,
+          {
+            folder: "mybookapp/books",
+          }
+        );
 
-  frontImageUrl = result.secure_url;
-}
+        frontImageUrl = result.secure_url;
+      }
 
-if (req.files?.backImage?.[0]) {
-  const result = await cloudinary.uploader.upload(
-    req.files.backImage[0].path,
-    {
-      folder: "mybookapp/books",
-    }
-  );
+      // =================================
+      // BACK IMAGE
+      // =================================
 
-  backImageUrl = result.secure_url;
-}
-if (req.files?.authorImage?.[0]) {
-  const result = await cloudinary.uploader.upload(
-    req.files.authorImage[0].path,
-    {
-      folder: "mybookapp/authors",
-    }
-  );
+      if (req.files?.backImage?.[0]) {
+        const result = await cloudinary.uploader.upload(
+          req.files.backImage[0].path,
+          {
+            folder: "mybookapp/books",
+          }
+        );
 
-  authorImageUrl = result.secure_url;
-}
-if (req.files?.bookPdf?.[0]) {
-  const pdfFile = req.files.bookPdf[0];
+        backImageUrl = result.secure_url;
+      }
 
-  const fileName =
-    Date.now() + "-" + pdfFile.originalname.replace(/\s+/g, "-");
+      // =================================
+      // AUTHOR IMAGE
+      // =================================
 
-  const { error } = await supabase.storage
-    .from("book-pdfs")
-    .upload(fileName, pdfFile.buffer, {
-      contentType: "application/pdf",
-      upsert: false,
-    });
+      if (req.files?.authorImage?.[0]) {
+        const result = await cloudinary.uploader.upload(
+          req.files.authorImage[0].path,
+          {
+            folder: "mybookapp/authors",
+          }
+        );
 
-  if (error) {
-    console.error("Supabase PDF Upload Error:", error);
-    throw error;
-  }
+        authorImageUrl = result.secure_url;
+      }
 
-  const { data } = supabase.storage
-    .from("book-pdfs")
-    .getPublicUrl(fileName);
+      // =================================
+      // PDF → SUPABASE
+      // =================================
 
-  pdfUrl = data.publicUrl;
-}
-const book = new Book({
-  title: req.body.title,
+      if (req.files?.bookPdf?.[0]) {
+        const pdfFile = req.files.bookPdf[0];
 
-  author: req.body.authorName,
+        const fileName =
+          Date.now() +
+          "-" +
+          pdfFile.originalname.replace(/\s+/g, "-");
 
-  authorDetails: {
-    name: req.body.authorName,
-    education: req.body.authorEducation || "",
-    bio: req.body.authorBio || "",
-    image: authorImageUrl,
-    email: req.body.authorEmail || "",
-    phone: req.body.authorPhone || "",
-  },
+        const fileBuffer = fs.readFileSync(
+          pdfFile.path
+        );
 
-  price: req.body.price,
+        const { error } =
+          await supabase.storage
+            .from("book-pdfs")
+            .upload(
+              fileName,
+              fileBuffer,
+              {
+                contentType: "application/pdf",
+                upsert: false,
+              }
+            );
 
-  description: req.body.description || "",
+        if (error) {
+          console.error(
+            "Supabase PDF Upload Error:",
+            error
+          );
 
-  coverImage: coverImageUrl,
+          throw error;
+        }
 
-  frontImage: frontImageUrl,
+        const { data } =
+          supabase.storage
+            .from("book-pdfs")
+            .getPublicUrl(fileName);
 
-  backImage: backImageUrl,
+        pdfUrl = data.publicUrl;
+      }
 
-  // ================================
-  // BOOK CATEGORY
-  // ================================
+      // =================================
+      // CREATE BOOK
+      // =================================
 
-  category: req.body.category || null,
+      const book = new Book({
 
-  // ================================
-  // AMAZON
-  // ================================
+        title: req.body.title || "",
 
-  amazonUrl: req.body.amazonUrl || "",
+        author: req.body.authorName || "",
 
-  // ================================
-  // READ BOOK
-  // ================================
+        authorDetails: {
+          name: req.body.authorName || "",
+          education:
+            req.body.authorEducation || "",
+          bio:
+            req.body.authorBio || "",
+          image: authorImageUrl,
+          email:
+            req.body.authorEmail || "",
+          phone:
+            req.body.authorPhone || "",
+        },
 
-  appBookEnabled:
-    req.body.appBookEnabled === "true",
+        price: req.body.price || 0,
 
-  // ================================
-  // FREE BOOK
-  // ================================
+        description:
+          req.body.description || "",
 
-  isFree:
-    req.body.isFree === "true",
-    pdfUrl: pdfUrl,
-});
+        coverImage: coverImageUrl,
 
-  
+        frontImage: frontImageUrl,
+
+        backImage: backImageUrl,
+
+        category:
+          req.body.category || null,
+
+        amazonUrl:
+          req.body.amazonUrl || "",
+
+        appBookEnabled:
+          req.body.appBookEnabled === "true",
+
+        isFree:
+          req.body.isFree === "true",
+
+        pdfUrl: pdfUrl,
+      });
 
       await book.save();
 
@@ -1075,83 +970,83 @@ const book = new Book({
       });
 
       res.send(`
+<!DOCTYPE html>
 
-        <html>
+<html>
 
-        <head>
+<head>
 
-          <title>Book Added</title>
+<title>Book Added</title>
 
-          <style>
+<style>
 
-            body {
-              font-family: Arial;
-              text-align: center;
-              padding: 50px;
-              background: #f5f5f5;
-            }
+body{
+font-family:Arial;
+text-align:center;
+padding:50px;
+background:#f5f5f5;
+}
 
-            .box {
-              background: white;
-              max-width: 500px;
-              margin: auto;
-              padding: 30px;
-              border-radius: 15px;
-              box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-            }
+.box{
+background:white;
+max-width:500px;
+margin:auto;
+padding:30px;
+border-radius:15px;
+box-shadow:0 4px 15px rgba(0,0,0,.1);
+}
 
-            a {
-              display: inline-block;
-              margin: 8px;
-              padding: 10px 18px;
-              background: black;
-              color: white;
-              text-decoration: none;
-              border-radius: 6px;
-            }
+a{
+display:inline-block;
+margin:8px;
+padding:10px 18px;
+background:black;
+color:white;
+text-decoration:none;
+border-radius:6px;
+}
 
-          </style>
+</style>
 
-        </head>
+</head>
 
-        <body>
+<body>
 
-          <div class="box">
+<div class="box">
 
-            <h2>
-              Book Added Successfully! ✅
-            </h2>
+<h2>
+Book Added Successfully! ✅
+</h2>
 
-            <p>
-              Book:
-              <b>${book.title}</b>
-            </p>
+<p>
+Book:
+<b>${book.title}</b>
+</p>
 
-            <p>
-              Notification Created: ✅
-            </p>
+<p>
+Notification Created: ✅
+</p>
 
-            <br>
+<br>
 
-            <a href="/add-book">
-              Add Another Book
-            </a>
+<a href="/add-book">
+Add Another Book
+</a>
 
-            <a href="/books">
-              View All Books
-            </a>
+<a href="/books">
+View All Books
+</a>
 
-          </div>
+</div>
 
-        </body>
+</body>
 
-        </html>
-
-      `);
+</html>
+`);
 
     } catch (error) {
 
-      console.log(
+      console.error(
         "Add Book Error:",
         error
       );
@@ -1159,532 +1054,573 @@ const book = new Book({
       res.status(500).send(
         error.message
       );
-
     }
-
   }
 );
 // =====================================
-// ADD SPECIAL OFFER NOTIFICATION
+// CREATE OFFER API
 // =====================================
 
-app.post("/api/notifications/offer", async (req, res) => {
-  try {
-    const { title, message } = req.body;
+app.post(
+  "/api/notifications/offer",
+  async (req, res) => {
+    try {
 
-    const notification = await Notification.create({
-      title: title || "Special Offer 🎁",
-      message: message || "A special offer is available for you.",
-      type: "offer",
-      isRead: false,
-    });
+      const { title, message } = req.body;
 
-    res.status(201).json(notification);
-  } catch (error) {
-    console.error("Offer Error:", error);
+      const notification =
+        await Notification.create({
 
-    res.status(500).json({
-      message: "Offer notification create nahi hui",
-    });
+          title:
+            title ||
+            "Special Offer 🎁",
+
+          message:
+            message ||
+            "A special offer is available for you.",
+
+          type: "offer",
+
+          isRead: false,
+
+        });
+
+      res.status(201).json(
+        notification
+      );
+
+    } catch (error) {
+
+      console.error(
+        "Offer Error:",
+        error
+      );
+
+      res.status(500).json({
+        message:
+          "Offer notification create nahi hui",
+      });
+    }
   }
-});
+);
+
 // =====================================
 // SPECIAL OFFER ADMIN PAGE
 // =====================================
 
-// =====================================
-// SPECIAL OFFER ADMIN PAGE
-// ADD + UPDATE + DELETE
-// =====================================
+app.get(
+  "/add-offer",
+  async (req, res) => {
 
-app.get("/add-offer", async (req, res) => {
-  try {
-    const offers = await Notification.find({
-      type: "offer",
-    }).sort({ createdAt: -1 });
+    try {
 
-    const offerList = offers
-      .map(
-        (offer) => `
-          <div class="offer">
-            <div>
-              <h3>${offer.title}</h3>
-              <p>${offer.message}</p>
-            </div>
+      const offers =
+        await Notification.find({
+          type: "offer",
+        }).sort({
+          createdAt: -1,
+        });
 
-            <div class="buttons">
-              <a
-                class="edit"
-                href="/edit-offer/${offer._id}"
-              >
-                Edit
-              </a>
+      const offerList =
+        offers
+          .map(
+            (offer) => `
+<div class="offer">
 
-              <form
-                method="POST"
-                action="/delete-offer/${offer._id}"
-                onsubmit="return confirm('Delete this offer?');"
-              >
-                <button
-                  class="delete"
-                  type="submit"
-                >
-                  Delete
-                </button>
-              </form>
-            </div>
-          </div>
-        `
-      )
-      .join("");
+<div>
+<h3>${offer.title}</h3>
+<p>${offer.message}</p>
+</div>
 
-    res.send(`
-      <!DOCTYPE html>
+<div class="buttons">
 
-      <html>
+<a
+class="edit"
+href="/edit-offer/${offer._id}"
+>
+Edit
+</a>
 
-      <head>
+<form
+method="POST"
+action="/delete-offer/${offer._id}"
+onsubmit="return confirm('Delete this offer?');"
+>
 
-        <title>Special Offers</title>
+<button
+class="delete"
+type="submit"
+>
+Delete
+</button>
 
-        <style>
+</form>
 
-          body {
-            font-family: Arial, sans-serif;
-            background: #f7f8fc;
-            padding: 30px;
-          }
+</div>
 
-          .container {
-            max-width: 700px;
-            margin: auto;
-          }
+</div>
+`
+          )
+          .join("");
 
-          .box {
-            background: white;
-            padding: 25px;
-            border-radius: 18px;
-            box-shadow:
-              0 5px 20px
-              rgba(0,0,0,0.08);
-          }
+      res.send(`
+<!DOCTYPE html>
 
-          h1 {
-            color: #5B4BDB;
-            margin-bottom: 25px;
-          }
+<html>
 
-          label {
-            display: block;
-            margin-top: 15px;
-            margin-bottom: 6px;
-            font-weight: bold;
-          }
+<head>
 
-          input,
-          textarea {
-            width: 100%;
-            box-sizing: border-box;
-            padding: 12px;
-            border: 1px solid #ddd;
-            border-radius: 10px;
-            font-size: 14px;
-          }
+<title>Special Offers</title>
 
-          textarea {
-            height: 100px;
-            resize: vertical;
-          }
+<style>
 
-          .add-button {
-            width: 100%;
-            margin-top: 20px;
-            padding: 13px;
-            border: none;
-            border-radius: 10px;
-            background: #5B4BDB;
-            color: white;
-            font-size: 16px;
-            font-weight: bold;
-            cursor: pointer;
-          }
+body{
+font-family:Arial;
+background:#f7f8fc;
+padding:30px;
+}
 
-          .offer {
-            background: white;
-            padding: 18px;
-            margin-top: 15px;
-            border-radius: 15px;
-            box-shadow:
-              0 3px 12px
-              rgba(0,0,0,0.06);
-          }
+.container{
+max-width:700px;
+margin:auto;
+}
 
-          .offer h3 {
-            margin: 0;
-            color: #333;
-          }
+.box,
+.offer{
+background:white;
+padding:20px;
+border-radius:15px;
+box-shadow:0 4px 15px rgba(0,0,0,.08);
+}
 
-          .offer p {
-            color: #666;
-          }
+h1{
+color:#5B4BDB;
+}
 
-          .buttons {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-          }
+input,
+textarea{
+width:100%;
+box-sizing:border-box;
+padding:12px;
+border:1px solid #ddd;
+border-radius:10px;
+margin:8px 0 15px;
+}
 
-          .edit {
-            background: #5B4BDB;
-            color: white;
-            padding: 8px 14px;
-            border-radius: 8px;
-            text-decoration: none;
-          }
+textarea{
+height:100px;
+resize:vertical;
+}
 
-          .delete {
-            background: #e53935;
-            color: white;
-            padding: 8px 14px;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-          }
+.add-button{
+width:100%;
+padding:13px;
+border:0;
+border-radius:10px;
+background:#5B4BDB;
+color:white;
+font-size:16px;
+font-weight:bold;
+}
 
-        </style>
+.offer{
+margin-top:15px;
+}
 
-      </head>
+.offer h3{
+margin:0;
+}
 
-      <body>
+.offer p{
+color:#666;
+}
 
-        <div class="container">
+.buttons{
+display:flex;
+gap:10px;
+align-items:center;
+}
 
-          <div class="box">
+.edit{
+background:#5B4BDB;
+color:white;
+padding:8px 14px;
+border-radius:8px;
+text-decoration:none;
+}
 
-            <h1>🎁 Special Offers</h1>
+.delete{
+background:#e53935;
+color:white;
+padding:8px 14px;
+border:0;
+border-radius:8px;
+}
 
-            <form
-              method="POST"
-              action="/add-offer"
-            >
+</style>
 
-              <label>
-                Offer Title
-              </label>
+</head>
 
-              <input
-                type="text"
-                name="title"
-                placeholder="Special Book Offer 🎁"
-                required
-              >
+<body>
 
-              <label>
-                Offer Message
-              </label>
+<div class="container">
 
-              <textarea
-                name="message"
-                placeholder="Get 20% off on selected books."
-                required
-              ></textarea>
+<div class="box">
 
-              <button
-                class="add-button"
-                type="submit"
-              >
-                Add Special Offer
-              </button>
+<h1>🎁 Special Offers</h1>
 
-            </form>
+<form
+method="POST"
+action="/add-offer"
+>
 
-          </div>
+<label>Offer Title</label>
 
-          <br>
+<input
+type="text"
+name="title"
+placeholder="Special Book Offer 🎁"
+required
+>
 
-          <h2>
-            Existing Offers
-          </h2>
+<label>Offer Message</label>
 
-          ${offerList || "<p>No offers available.</p>"}
+<textarea
+name="message"
+placeholder="Get 20% off on selected books."
+required
+></textarea>
 
-        </div>
+<button
+class="add-button"
+type="submit"
+>
+Add Special Offer
+</button>
 
-      </body>
+</form>
 
-      </html>
-    `);
+</div>
 
-  } catch (error) {
+<br>
 
-    console.error(
-      "Offer Page Error:",
-      error
-    );
+<h2>Existing Offers</h2>
 
-    res.status(500).send(
-      "Offers load nahi ho paaye."
-    );
-  }
-});
-// =====================================
-// EDIT SPECIAL OFFER PAGE
-// =====================================
+${
+  offerList ||
+  "<p>No offers available.</p>"
+}
 
-app.get("/edit-offer/:id", async (req, res) => {
-  try {
-    const offer = await Notification.findById(
-      req.params.id
-    );
+</div>
 
-    if (!offer || offer.type !== "offer") {
-      return res.status(404).send(
-        "Offer nahi mila."
+</body>
+
+</html>
+`);
+
+    } catch (error) {
+
+      console.error(
+        "Offer Page Error:",
+        error
+      );
+
+      res.status(500).send(
+        "Offers load nahi ho paaye."
       );
     }
-
-    res.send(`
-      <!DOCTYPE html>
-
-      <html>
-
-      <head>
-
-        <title>Edit Special Offer</title>
-
-        <style>
-
-          body {
-            font-family: Arial, sans-serif;
-            background: #f7f8fc;
-            padding: 40px;
-          }
-
-          .box {
-            max-width: 500px;
-            margin: auto;
-            background: white;
-            padding: 30px;
-            border-radius: 18px;
-            box-shadow:
-              0 5px 20px
-              rgba(0,0,0,0.08);
-          }
-
-          h2 {
-            color: #5B4BDB;
-          }
-
-          label {
-            display: block;
-            margin-top: 15px;
-            margin-bottom: 6px;
-            font-weight: bold;
-          }
-
-          input,
-          textarea {
-            width: 100%;
-            box-sizing: border-box;
-            padding: 12px;
-            border: 1px solid #ddd;
-            border-radius: 10px;
-            font-size: 14px;
-          }
-
-          textarea {
-            height: 120px;
-          }
-
-          button {
-            width: 100%;
-            margin-top: 20px;
-            padding: 13px;
-            border: none;
-            border-radius: 10px;
-            background: #5B4BDB;
-            color: white;
-            font-size: 16px;
-            font-weight: bold;
-            cursor: pointer;
-          }
-
-        </style>
-
-      </head>
-
-      <body>
-
-        <div class="box">
-
-          <h2>
-            ✏️ Edit Special Offer
-          </h2>
-
-          <form
-            method="POST"
-            action="/edit-offer/${offer._id}"
-          >
-
-            <label>
-              Offer Title
-            </label>
-
-            <input
-              type="text"
-              name="title"
-              value="${offer.title}"
-              required
-            >
-
-            <label>
-              Offer Message
-            </label>
-
-            <textarea
-              name="message"
-              required
-            >${offer.message}</textarea>
-
-            <button type="submit">
-              Update Offer
-            </button>
-
-          </form>
-
-        </div>
-
-      </body>
-
-      </html>
-    `);
-
-  } catch (error) {
-
-    console.error(
-      "Edit Offer Page Error:",
-      error
-    );
-
-    res.status(500).send(
-      "Edit page open nahi hui."
-    );
   }
-});
+);
+
 // =====================================
-// UPDATE SPECIAL OFFER
+// EDIT OFFER PAGE
 // =====================================
 
-app.post("/edit-offer/:id", async (req, res) => {
-  try {
-    const { title, message } = req.body;
+app.get(
+  "/edit-offer/:id",
+  async (req, res) => {
 
-    await Notification.findByIdAndUpdate(
-      req.params.id,
-      {
-        title: title,
-        message: message,
-      },
-      {
-        new: true,
+    try {
+
+      const offer =
+        await Notification.findById(
+          req.params.id
+        );
+
+      if (
+        !offer ||
+        offer.type !== "offer"
+      ) {
+        return res
+          .status(404)
+          .send("Offer nahi mila.");
       }
-    );
 
-    res.redirect("/add-offer");
+      res.send(`
+<!DOCTYPE html>
 
-  } catch (error) {
+<html>
 
-    console.error(
-      "Update Offer Error:",
-      error
-    );
+<head>
 
-    res.status(500).send(
-      "Offer update nahi hui."
-    );
+<title>Edit Special Offer</title>
+
+<style>
+
+body{
+font-family:Arial;
+background:#f7f8fc;
+padding:40px;
+}
+
+.box{
+max-width:500px;
+margin:auto;
+background:white;
+padding:30px;
+border-radius:18px;
+box-shadow:0 5px 20px rgba(0,0,0,.08);
+}
+
+input,
+textarea{
+width:100%;
+box-sizing:border-box;
+padding:12px;
+border:1px solid #ddd;
+border-radius:10px;
+margin:8px 0 15px;
+}
+
+textarea{
+height:120px;
+}
+
+button{
+width:100%;
+padding:13px;
+border:0;
+border-radius:10px;
+background:#5B4BDB;
+color:white;
+font-size:16px;
+font-weight:bold;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="box">
+
+<h2>✏️ Edit Special Offer</h2>
+
+<form
+method="POST"
+action="/edit-offer/${offer._id}"
+>
+
+<label>Offer Title</label>
+
+<input
+type="text"
+name="title"
+value="${offer.title}"
+required
+>
+
+<label>Offer Message</label>
+
+<textarea
+name="message"
+required
+>${offer.message}</textarea>
+
+<button type="submit">
+Update Offer
+</button>
+
+</form>
+
+</div>
+
+</body>
+
+</html>
+`);
+
+    } catch (error) {
+
+      console.error(
+        "Edit Offer Page Error:",
+        error
+      );
+
+      res.status(500).send(
+        "Edit page open nahi hui."
+      );
+    }
   }
-});
+);
+
 // =====================================
-// DELETE SPECIAL OFFER
+// UPDATE OFFER
 // =====================================
 
-app.post("/delete-offer/:id", async (req, res) => {
-  try {
-    await Notification.findByIdAndDelete(
-      req.params.id
-    );
+app.post(
+  "/edit-offer/:id",
+  async (req, res) => {
 
-    res.redirect("/add-offer");
+    try {
 
-  } catch (error) {
+      const {
+        title,
+        message,
+      } = req.body;
 
-    console.error(
-      "Delete Offer Error:",
-      error
-    );
+      await Notification.findByIdAndUpdate(
+        req.params.id,
+        {
+          title,
+          message,
+        },
+        {
+          new: true,
+        }
+      );
 
-    res.status(500).send(
-      "Offer delete nahi hui."
-    );
+      res.redirect(
+        "/add-offer"
+      );
+
+    } catch (error) {
+
+      console.error(
+        "Update Offer Error:",
+        error
+      );
+
+      res.status(500).send(
+        "Offer update nahi hui."
+      );
+    }
   }
-});
+);
+
 // =====================================
-// SAVE SPECIAL OFFER
+// DELETE OFFER
 // =====================================
 
-app.post("/add-offer", async (req, res) => {
-  try {
-    const { title, message } = req.body;
+app.post(
+  "/delete-offer/:id",
+  async (req, res) => {
 
-    await Notification.create({
-      title: title,
-      message: message,
-      type: "offer",
-      isRead: false,
-    });
+    try {
 
-    res.send(`
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Offer Added</title>
-      </head>
+      await Notification.findByIdAndDelete(
+        req.params.id
+      );
 
-      <body
-        style="
-          font-family: Arial;
-          text-align: center;
-          padding: 50px;
-        "
-      >
+      res.redirect(
+        "/add-offer"
+      );
 
-        <h2>✅ Special Offer Added Successfully!</h2>
+    } catch (error) {
 
-        <p>
-          Notification successfully MongoDB me save ho gayi.
-        </p>
+      console.error(
+        "Delete Offer Error:",
+        error
+      );
 
-        <br>
-
-        <a href="/add-offer">
-          ➕ Add Another Offer
-        </a>
-
-      </body>
-      </html>
-    `);
-
-  } catch (error) {
-    console.error("Offer Save Error:", error);
-
-    res.status(500).send(`
-      <h2>❌ Special Offer add nahi hui</h2>
-      <p>Please server terminal check karein.</p>
-    `);
+      res.status(500).send(
+        "Offer delete nahi hui."
+      );
+    }
   }
-});
+);
+
 // =====================================
-// NOTIFICATION - GET ALL
+// SAVE OFFER
+// =====================================
+
+app.post(
+  "/add-offer",
+  async (req, res) => {
+
+    try {
+
+      const {
+        title,
+        message,
+      } = req.body;
+
+      await Notification.create({
+
+        title,
+
+        message,
+
+        type: "offer",
+
+        isRead: false,
+
+      });
+
+      res.send(`
+<html>
+
+<head>
+
+<title>Offer Added</title>
+
+</head>
+
+<body
+style="
+font-family:Arial;
+text-align:center;
+padding:50px;
+"
+>
+
+<h2>
+✅ Special Offer Added Successfully!
+</h2>
+
+<p>
+Notification successfully MongoDB me save ho gayi.
+</p>
+
+<br>
+
+<a href="/add-offer">
+➕ Add Another Offer
+</a>
+
+</body>
+
+</html>
+`);
+
+    } catch (error) {
+
+      console.error(
+        "Offer Save Error:",
+        error
+      );
+
+      res.status(500).send(`
+<h2>❌ Special Offer add nahi hui</h2>
+<p>Please server terminal check karein.</p>
+`);
+    }
+  }
+);
+
+// =====================================
+// GET ALL NOTIFICATIONS
 // =====================================
 
 app.get(
@@ -1699,29 +1635,21 @@ app.get(
             createdAt: -1,
           });
 
-      res.json(notifications);
+      res.json(
+        notifications
+      );
 
     } catch (error) {
 
-      console.log(
-        "Notification Error:",
-        error
-      );
-
       res.status(500).json({
-
-        error:
-          error.message,
-
+        error: error.message,
       });
-
     }
-
   }
 );
 
 // =====================================
-// NOTIFICATION - UNREAD COUNT
+// UNREAD COUNT
 // =====================================
 
 app.get(
@@ -1736,27 +1664,20 @@ app.get(
         });
 
       res.json({
-
-        count: count,
-
+        count,
       });
 
     } catch (error) {
 
       res.status(500).json({
-
-        error:
-          error.message,
-
+        error: error.message,
       });
-
     }
-
   }
 );
 
 // =====================================
-// MARK ONE AS READ
+// MARK ONE READ
 // =====================================
 
 app.put(
@@ -1767,48 +1688,37 @@ app.put(
 
       const notification =
         await Notification.findByIdAndUpdate(
-
           req.params.id,
-
           {
             isRead: true,
           },
-
           {
             new: true,
           }
-
         );
 
       if (!notification) {
-
         return res.status(404).json({
-
           message:
             "Notification not found",
-
         });
-
       }
 
-      res.json(notification);
+      res.json(
+        notification
+      );
 
     } catch (error) {
 
       res.status(500).json({
-
-        error:
-          error.message,
-
+        error: error.message,
       });
-
     }
-
   }
 );
 
 // =====================================
-// MARK ALL AS READ
+// MARK ALL READ
 // =====================================
 
 app.put(
@@ -1818,37 +1728,28 @@ app.put(
     try {
 
       await Notification.updateMany(
-
         {
           isRead: false,
         },
-
         {
           isRead: true,
         }
-
       );
 
       res.json({
-
         message:
           "All notifications marked as read",
-
       });
 
     } catch (error) {
 
       res.status(500).json({
-
-        error:
-          error.message,
-
+        error: error.message,
       });
-
     }
-
   }
 );
+
 // =====================================
 // DELETE ONE NOTIFICATION
 // =====================================
@@ -1865,33 +1766,25 @@ app.delete(
         );
 
       if (!notification) {
-
         return res.status(404).json({
-          message: "Notification not found",
+          message:
+            "Notification not found",
         });
-
       }
 
       res.json({
-        message: "Notification deleted successfully",
+        message:
+          "Notification deleted successfully",
       });
 
     } catch (error) {
 
-      console.log(
-        "Delete Notification Error:",
-        error
-      );
-
       res.status(500).json({
         error: error.message,
       });
-
     }
-
   }
 );
-
 
 // =====================================
 // DELETE ALL NOTIFICATIONS
@@ -1906,26 +1799,18 @@ app.delete(
       await Notification.deleteMany({});
 
       res.json({
-        message: "All notifications deleted successfully",
+        message:
+          "All notifications deleted successfully",
       });
 
     } catch (error) {
 
-      console.log(
-        "Clear Notifications Error:",
-        error
-      );
-
       res.status(500).json({
         error: error.message,
       });
-
     }
-
   }
 );
-
-
 // =====================================
 // GET AUTHOR
 // =====================================
@@ -1940,31 +1825,22 @@ app.get(
         await Author.findOne();
 
       if (!author) {
-
         return res.status(404).json({
-          message: "Author not found",
+          message:
+            "Author not found",
         });
-
       }
 
       res.json(author);
 
     } catch (error) {
 
-      console.log(
-        "Author Error:",
-        error
-      );
-
       res.status(500).json({
         error: error.message,
       });
-
     }
-
   }
 );
-
 
 // =====================================
 // GET AUTHOR API
@@ -1980,31 +1856,22 @@ app.get(
         await Author.findOne();
 
       if (!author) {
-
         return res.status(404).json({
-          message: "Author not found",
+          message:
+            "Author not found",
         });
-
       }
 
       res.json(author);
 
     } catch (error) {
 
-      console.log(
-        "Author API Error:",
-        error
-      );
-
       res.status(500).json({
         error: error.message,
       });
-
     }
-
   }
 );
-
 
 // =====================================
 // SAVE / UPDATE AUTHOR
@@ -2013,7 +1880,6 @@ app.get(
 app.post(
   "/author",
   upload.single("image"),
-
   async (req, res) => {
 
     try {
@@ -2022,9 +1888,7 @@ app.post(
         await Author.findOne();
 
       if (!author) {
-
         author = new Author();
-
       }
 
       author.name =
@@ -2042,98 +1906,101 @@ app.post(
       author.phone =
         req.body.phone || "";
 
+      // ================================
+      // AUTHOR IMAGE
+      // ================================
 
       if (req.file) {
 
-  const result = await cloudinary.uploader.upload(
-    req.file.path,
-    {
-      folder: "mybookapp/authors",
-    }
-  );
+        const result =
+          await cloudinary.uploader.upload(
+            req.file.path,
+            {
+              folder:
+                "mybookapp/authors",
+            }
+          );
 
-  author.image = result.secure_url;
-
-}
-
+        author.image =
+          result.secure_url;
+      }
 
       await author.save();
 
-
       res.send(`
+<!DOCTYPE html>
 
-        <html>
+<html>
 
-        <head>
+<head>
 
-          <title>Author Saved</title>
+<title>Author Saved</title>
 
-          <style>
+<style>
 
-            body {
-              font-family: Arial;
-              background: #f5f5f5;
-              text-align: center;
-              padding: 50px;
-            }
+body{
+font-family:Arial;
+background:#f5f5f5;
+text-align:center;
+padding:50px;
+}
 
-            .box {
-              background: white;
-              max-width: 500px;
-              margin: auto;
-              padding: 30px;
-              border-radius: 15px;
-              box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-            }
+.box{
+background:white;
+max-width:500px;
+margin:auto;
+padding:30px;
+border-radius:15px;
+box-shadow:0 4px 15px rgba(0,0,0,.1);
+}
 
-            a {
-              display: inline-block;
-              margin: 8px;
-              padding: 10px 18px;
-              background: black;
-              color: white;
-              text-decoration: none;
-              border-radius: 6px;
-            }
+a{
+display:inline-block;
+margin:8px;
+padding:10px 18px;
+background:black;
+color:white;
+text-decoration:none;
+border-radius:6px;
+}
 
-          </style>
+</style>
 
-        </head>
+</head>
 
-        <body>
+<body>
 
-          <div class="box">
+<div class="box">
 
-            <h2>
-              Author Saved Successfully! ✅
-            </h2>
+<h2>
+Author Saved Successfully! ✅
+</h2>
 
-            <p>
-              Author:
-              <b>${author.name}</b>
-            </p>
+<p>
+Author:
+<b>${author.name}</b>
+</p>
 
-            <br>
+<br>
 
-            <a href="/add-author">
-              Edit Author
-            </a>
+<a href="/add-author">
+Edit Author
+</a>
 
-            <a href="/author">
-              View Author
-            </a>
+<a href="/author">
+View Author
+</a>
 
-          </div>
+</div>
 
-        </body>
+</body>
 
-        </html>
-
-      `);
+</html>
+`);
 
     } catch (error) {
 
-      console.log(
+      console.error(
         "Author Save Error:",
         error
       );
@@ -2141,196 +2008,189 @@ app.post(
       res.status(500).send(
         error.message
       );
-
     }
-
   }
 );
+
 // =====================================
 // ADD / EDIT AUTHOR FORM
 // =====================================
 
-app.get("/add-author", async (req, res) => {
+app.get(
+  "/add-author",
+  async (req, res) => {
 
-  try {
+    try {
 
-    const author = await Author.findOne();
+      const author =
+        await Author.findOne();
 
-    res.send(`
+      res.send(`
+<!DOCTYPE html>
 
-      <html>
+<html>
 
-      <head>
+<head>
 
-        <title>
-          ${author ? "Edit Author" : "Add Author"}
-        </title>
+<title>
+${author ? "Edit Author" : "Add Author"}
+</title>
 
-        <style>
+<style>
 
-          body {
-            font-family: Arial;
-            background: #f5f5f5;
-            padding: 30px;
-          }
+body{
+font-family:Arial;
+background:#f5f5f5;
+padding:30px;
+}
 
-          .container {
-            max-width: 500px;
-            margin: auto;
-            background: white;
-            padding: 25px;
-            border-radius: 12px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-          }
+.container{
+max-width:500px;
+margin:auto;
+background:white;
+padding:25px;
+border-radius:12px;
+box-shadow:0 4px 15px rgba(0,0,0,.1);
+}
 
-          h2 {
-            text-align: center;
-          }
+h2{
+text-align:center;
+}
 
-          input,
-          textarea {
-            width: 100%;
-            padding: 10px;
-            margin-top: 6px;
-            margin-bottom: 15px;
-            box-sizing: border-box;
-          }
+input,
+textarea{
+width:100%;
+padding:10px;
+margin-top:6px;
+margin-bottom:15px;
+box-sizing:border-box;
+}
 
-          textarea {
-            min-height: 100px;
-          }
+textarea{
+min-height:100px;
+}
 
-          button {
-            width: 100%;
-            padding: 12px;
-            background: black;
-            color: white;
-            border: none;
-            border-radius: 6px;
-            font-size: 16px;
-            cursor: pointer;
-          }
+button{
+width:100%;
+padding:12px;
+background:black;
+color:white;
+border:0;
+border-radius:6px;
+font-size:16px;
+}
 
-          a {
-            display: block;
-            text-align: center;
-            margin-top: 15px;
-            color: #333;
-          }
+a{
+display:block;
+text-align:center;
+margin-top:15px;
+color:#333;
+}
 
-        </style>
+</style>
 
-      </head>
+</head>
 
-      <body>
+<body>
 
-        <div class="container">
+<div class="container">
 
-          <h2>
-            ${author ? "Edit Author" : "Add Author"}
-          </h2>
+<h2>
+${author ? "Edit Author" : "Add Author"}
+</h2>
 
-          <form
-            method="POST"
-            action="/author"
-            enctype="multipart/form-data"
-          >
+<form
+method="POST"
+action="/author"
+enctype="multipart/form-data"
+>
 
-            <label>
-              Author Name:
-            </label>
+<label>
+Author Name:
+</label>
 
-            <input
-              type="text"
-              name="name"
-              value="${author?.name || ""}"
-              required
-            >
+<input
+type="text"
+name="name"
+value="${author?.name || ""}"
+required
+>
 
+<label>
+Education:
+</label>
 
-            <label>
-              Education:
-            </label>
+<input
+type="text"
+name="education"
+value="${author?.education || ""}"
+>
 
-            <input
-              type="text"
-              name="education"
-              value="${author?.education || ""}"
-            >
+<label>
+Bio:
+</label>
 
+<textarea
+name="bio"
+>${author?.bio || ""}</textarea>
 
-            <label>
-              Bio:
-            </label>
+<label>
+Email:
+</label>
 
-            <textarea
-              name="bio"
-            >${author?.bio || ""}</textarea>
+<input
+type="email"
+name="email"
+value="${author?.email || ""}"
+>
 
+<label>
+Phone:
+</label>
 
-            <label>
-              Email:
-            </label>
+<input
+type="text"
+name="phone"
+value="${author?.phone || ""}"
+>
 
-            <input
-              type="email"
-              name="email"
-              value="${author?.email || ""}"
-            >
+<label>
+Author Image:
+</label>
 
+<input
+type="file"
+name="image"
+accept="image/*"
+>
 
-            <label>
-              Phone:
-            </label>
+<button type="submit">
+Save Author
+</button>
 
-            <input
-              type="text"
-              name="phone"
-              value="${author?.phone || ""}"
-            >
+</form>
 
+<a href="/author">
+View Author
+</a>
 
-            <label>
-              Author Image:
-            </label>
+</div>
 
-            <input
-              type="file"
-              name="image"
-              accept="image/*"
-            >
+</body>
 
+</html>
+`);
 
-            <button type="submit">
-              Save Author
-            </button>
+    } catch (error) {
 
-          </form>
+      console.error(
+        "Add Author Page Error:",
+        error
+      );
 
-
-          <a href="/author">
-            View Author
-          </a>
-
-        </div>
-
-      </body>
-
-      </html>
-
-    `);
-
-  } catch (error) {
-
-    console.log(
-      "Add Author Page Error:",
-      error
-    );
-
-    res.status(500).send(
-      error.message
-    );
-
+      res.status(500).send(
+        error.message
+      );
+    }
   }
-
-});
+);
