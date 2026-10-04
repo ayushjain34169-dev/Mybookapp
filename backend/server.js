@@ -8,6 +8,12 @@ cloudinary.config({
   api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
+const { createClient } = require("@supabase/supabase-js");
+
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SECRET_KEY
+);
 
 const Book = require("./models/Book");
 const Author = require("./models/author");
@@ -20,16 +26,7 @@ const app = express();
 // MULTER IMAGE UPLOAD SETUP
 // =====================================
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, "uploads/");
-  },
-
-  filename: (req, file, cb) => {
-    cb(null, Date.now() + "-" + file.originalname);
-  },
-});
-
+const storage = multer.memoryStorage();
 const upload = multer({
   storage: storage,
   limits: {
@@ -979,15 +976,28 @@ if (req.files?.authorImage?.[0]) {
   authorImageUrl = result.secure_url;
 }
 if (req.files?.bookPdf?.[0]) {
-  const result = await cloudinary.uploader.upload(
-    req.files.bookPdf[0].path,
-    {
-      folder: "mybookapp/pdfs",
-      resource_type: "raw",
-    }
-  );
+  const pdfFile = req.files.bookPdf[0];
 
-  pdfUrl = result.secure_url;
+  const fileName =
+    Date.now() + "-" + pdfFile.originalname.replace(/\s+/g, "-");
+
+  const { error } = await supabase.storage
+    .from("book-pdfs")
+    .upload(fileName, pdfFile.buffer, {
+      contentType: "application/pdf",
+      upsert: false,
+    });
+
+  if (error) {
+    console.error("Supabase PDF Upload Error:", error);
+    throw error;
+  }
+
+  const { data } = supabase.storage
+    .from("book-pdfs")
+    .getPublicUrl(fileName);
+
+  pdfUrl = data.publicUrl;
 }
 const book = new Book({
   title: req.body.title,
